@@ -19,9 +19,26 @@
 -- the window first, then lower the `HAVING COUNT(*) >= 30` floor — but never
 -- below ~30, or the shares stop meaning anything.
 
+-- WHO IS IN THE SAMPLE (the ICP, as observable filters)
+--
+-- Piggy compares you to people like you, so the sample has to BE people like
+-- you. Defined behaviourally, because how someone handles money is what makes
+-- them the audience — not which on-ramp they happened to use:
+--
+--   * small money      — $50 to $10k arriving in the window, so no whales
+--   * Solana DeFi user — actually traded on a Solana DEX in the window
+--   * recently active  — 6 months by default; set window_start 3 months back
+--                        for a tighter read
+--   * not a bot        — deposit and trade counts capped below machine rates
+--
+-- Not filtered on: arriving via MoonPay or PayBox specifically. That would
+-- need their settlement addresses identified in a labelled dataset, which is
+-- not confirmed — check Dune's label tables before adding it. Nothing in this
+-- query assumes it.
+
 WITH params AS (
   SELECT
-    DATE '2026-04-01' AS window_start,
+    DATE '2026-04-01' AS window_start,   -- 6 months; use 2026-07-01 for 3
     DATE '2026-10-01' AS window_end,
     'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' AS usdc_mint
 ),
@@ -55,16 +72,32 @@ funding AS (
      AND SUM(usd_in) BETWEEN 50 AND 10000
 ),
 
+-- 2b. ICP gate: must actually be a Solana DeFi user in the window, and must
+--     not trade at machine rates. Without this the sample is "anyone who
+--     received USDC", which is not the audience.
+defi_active AS (
+  SELECT
+    t.trader_id AS wallet,
+    COUNT(DISTINCT t.tx_id) AS trade_count
+  FROM dex_solana.trades t, params p
+  WHERE t.block_time >= p.window_start
+    AND t.block_time <  p.window_end
+    AND t.trader_id IN (SELECT wallet FROM funding)
+  GROUP BY t.trader_id
+  HAVING COUNT(DISTINCT t.tx_id) BETWEEN 1 AND 500
+),
+
 cohort AS (
   SELECT
-    wallet,
-    total_in_usd,
+    f.wallet,
+    f.total_in_usd,
     CASE
-      WHEN deposit_count <= 6  AND gap_stddev >  20 THEN 'irregular_topup'
-      WHEN deposit_count >= 12 AND gap_stddev <= 12 THEN 'regular_topup'
+      WHEN f.deposit_count <= 6  AND f.gap_stddev >  20 THEN 'irregular_topup'
+      WHEN f.deposit_count >= 12 AND f.gap_stddev <= 12 THEN 'regular_topup'
       ELSE 'mixed'
     END AS funding_signature
-  FROM funding
+  FROM funding f
+  JOIN defi_active d ON d.wallet = f.wallet
 ),
 
 -- 3. What each wallet did. Classified by what it bought, not by decoding
