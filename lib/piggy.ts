@@ -48,7 +48,7 @@ function shareOf(balances: TokenBalance[], predicate: (b: TokenBalance) => boole
 const symbolOf = (b: TokenBalance) => b.symbol.toUpperCase();
 
 export function computeStats(req: AnalyzeRequest): Stats {
-  const balances = req.wallets.flatMap((w) => w.balances);
+  const balances = (req.wallets ?? []).flatMap((w) => w.balances);
   const source = "PayBox get_portfolio";
   const total = pricedTotal(balances);
 

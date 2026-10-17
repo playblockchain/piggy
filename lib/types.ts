@@ -43,7 +43,13 @@ export interface PluginPositions {
 }
 
 export interface AnalyzeRequest {
-  wallets: WalletSnapshot[];
+  /**
+   * Just addresses. Piggy fetches the balances itself — your own wallet, the
+   * ones PayBox has connected, or any address you drop in. Either this or
+   * `wallets` is required; supplying both merges them.
+   */
+  addresses?: string[];
+  wallets?: WalletSnapshot[];
   positions?: PluginPositions;
   goal?: { label: string; targetUsd?: number; horizonMonths?: number };
   selfReported?: {
@@ -161,5 +167,7 @@ export interface AnalyzeResponse {
   cohort: CohortReading;
   /** What Piggy could not see, stated plainly rather than guessed. */
   blindSpots: string[];
+  /** Per-address result when addresses were supplied, so failures are visible. */
+  resolved?: Array<{ address: string; chain: string; ok: boolean; tokens: number; message?: string }>;
   cardUrl: string;
 }

@@ -12,6 +12,7 @@ import {
   pickScenario,
 } from "@/lib/piggy";
 import { deriveHabits, fetchHistory } from "@/lib/history";
+import { fetchWallet } from "@/lib/wallet";
 import { analyzeRouteConfig, PAY_TO, resourceServer } from "@/lib/x402";
 import type { AnalyzeRequest, AnalyzeResponse } from "@/lib/types";
 
@@ -25,13 +26,18 @@ function validate(body: unknown): { ok: true; req: AnalyzeRequest } | { ok: fals
     return { ok: false, res: badRequest("Body was not a JSON object.", "POST a JSON object with a `wallets` array.") };
   }
   const req = body as Partial<AnalyzeRequest>;
-  if (!Array.isArray(req.wallets) || req.wallets.length === 0) {
+  const hasAddresses = Array.isArray(req.addresses) && req.addresses.length > 0;
+  const hasWallets = Array.isArray(req.wallets) && req.wallets.length > 0;
+  if (!hasAddresses && !hasWallets) {
     return {
       ok: false,
-      res: badRequest("No wallets were supplied.", "Include at least one wallet: { chain, address, balances[] }."),
+      res: badRequest(
+        "No wallets or addresses were supplied.",
+        'Send either { "addresses": ["<wallet address>"] } and Piggy will fetch the balances, or { "wallets": [{ chain, address, balances[] }] } if you already have them.',
+      ),
     };
   }
-  for (const w of req.wallets) {
+  for (const w of req.wallets ?? []) {
     if (!w || typeof w.address !== "string" || !Array.isArray(w.balances)) {
       return {
         ok: false,
@@ -52,7 +58,32 @@ const handler = async (request: NextRequest) => {
 
   const checked = validate(body);
   if (!checked.ok) return checked.res;
-  const req = checked.req;
+  let req = checked.req;
+
+  // Addresses supplied: go and read them, rather than trusting a balance list
+  // the caller typed.
+  const resolved: AnalyzeResponse["resolved"] = [];
+  if (req.addresses?.length) {
+    const fetched = await Promise.all(req.addresses.slice(0, 5).map((a) => fetchWallet(a)));
+    for (const f of fetched) {
+      resolved.push({
+        address: f.address,
+        chain: f.chain,
+        ok: f.ok,
+        tokens: f.balances.length,
+        ...(f.message ? { message: f.message } : {}),
+      });
+    }
+    req = {
+      ...req,
+      wallets: [
+        ...(req.wallets ?? []),
+        ...fetched
+          .filter((f) => f.ok)
+          .map((f) => ({ chain: f.chain, address: f.address, balances: f.balances })),
+      ],
+    };
+  }
 
   const stats = computeStats(req);
   const persona = pickPersona(req, stats);
@@ -60,7 +91,7 @@ const handler = async (request: NextRequest) => {
   // History comes from an indexer, not PayBox. Read the first Solana address;
   // if it is unavailable for any reason, habits stay unknown rather than being
   // inferred from holdings.
-  const solanaAddress = req.wallets.find((w) => w.chain === "solana")?.address;
+  const solanaAddress = (req.wallets ?? []).find((w) => w.chain === "solana")?.address;
   const historyResult = solanaAddress
     ? await fetchHistory(solanaAddress)
     : {
@@ -113,6 +144,7 @@ const handler = async (request: NextRequest) => {
       raidingSavings: habits?.raidingSavings,
       walletKind: habits?.walletKind,
     },
+    ...(resolved.length ? { resolved } : {}),
     blindSpots: blindSpots(
       req,
       stats,
