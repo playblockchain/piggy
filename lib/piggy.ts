@@ -359,20 +359,29 @@ export function buildPlan(
   // Every executeWith names a PayBox plugin that can actually act — Kamino
   // (deposit/withdraw), Jupiter (trade/earn) and Sunrise (trade). Read-only
   // plugins are never offered as a way to do something.
+  //
+  // All three of those act on Solana. An Ethereum wallet used to be told to
+  // "move some SOL into liquid staking" through Jupiter, which is advice it
+  // cannot take about an asset it does not hold. The action still stands on
+  // any chain; the plugin only gets named where it can actually run.
+  const onSolana = (req.wallets ?? []).some((w) => w.chain === "solana");
+  const via = (plugin: string) => (onSolana ? { executeWith: plugin } : {});
+  const native = onSolana ? "SOL" : "ETH";
+
   if (stable !== null && stable > 0.4) {
     steps.push({
       action: "Put part of your idle stablecoins to work",
       piggySays: "This cash is just sitting there looking pretty. Give it a job.",
-      executeWith: "Kamino Lending Vaults, via your agent's PayBox plugin",
+      ...via("Kamino Lending Vaults, via your agent's PayBox plugin"),
       risk: "Lending carries smart-contract risk and the rate moves. This is not a savings account.",
     });
   }
   if (staked !== null && staked < 0.2) {
     steps.push({
-      action: "Move some SOL into liquid staking",
-      piggySays: "Staked SOL still moves with SOL. It just stops doing nothing.",
-      executeWith: "Jupiter, via your agent's PayBox plugin",
-      risk: "You keep full SOL price exposure, and liquid-staking tokens can trade below SOL.",
+      action: `Move some ${native} into liquid staking`,
+      piggySays: `Staked ${native} still moves with ${native}. It just stops doing nothing.`,
+      ...via("Jupiter, via your agent's PayBox plugin"),
+      risk: `You keep full ${native} price exposure, and liquid-staking tokens can trade below ${native}.`,
     });
   }
   // Only nag about concentration when the biggest holding is not a stablecoin:
@@ -386,7 +395,7 @@ export function buildPlan(
     steps.push({
       action: "Spread out the single biggest position",
       piggySays: "One token is carrying your whole personality. That is not a strategy, it is a crush.",
-      executeWith: "Jupiter or Sunrise, via your agent's PayBox plugin",
+      ...via("Jupiter or Sunrise, via your agent's PayBox plugin"),
       risk: "Selling crystallises any loss, and the thing you sell may go up afterwards.",
     });
   }

@@ -117,6 +117,62 @@ check("a stablecoin wallet still reads the way it always did", () => {
   );
 });
 
+console.log("\nbuildPlan() — chain awareness");
+
+const { buildPlan } = await import("../lib/piggy.ts");
+const { computeStats } = await import("../lib/piggy.ts");
+
+const wallet = (chain: "solana" | "evm", balances: Array<{ symbol: string; amount: number; usdValue?: number }>) => ({
+  wallets: [{ chain, address: chain === "solana" ? "SoLAddr" : "0xabc", balances }],
+});
+
+check("an EVM wallet is not told to stake SOL", () => {
+  // flexcopy.eth: all ETH, nothing staked. It used to be told to move SOL
+  // into liquid staking through Jupiter — an asset it does not hold, on a
+  // chain it is not on.
+  const req = wallet("evm", [{ symbol: "ETH", amount: 0.018, usdValue: 43 }]);
+  const steps = buildPlan(req, computeStats(req)).steps;
+  const staking = steps.find((s) => s.action.includes("liquid staking"));
+  assert.ok(staking, "a wallet with nothing staked still gets the suggestion");
+  assert.match(staking.action, /ETH/);
+  assert.doesNotMatch(JSON.stringify(steps), /SOL\b/, "nothing mentions SOL");
+});
+
+check("no Solana plugin is offered to an EVM wallet", () => {
+  // Kamino, Jupiter and Sunrise all act on Solana. Naming one for an Ethereum
+  // wallet is an instruction that cannot be carried out.
+  const req = wallet("evm", [
+    { symbol: "USDC", amount: 900, usdValue: 900 },
+    { symbol: "ETH", amount: 0.04, usdValue: 100 },
+  ]);
+  const steps = buildPlan(req, computeStats(req)).steps;
+  assert.doesNotMatch(JSON.stringify(steps), /Kamino|Jupiter|Sunrise/);
+  assert.ok(steps.every((s) => s.executeWith === undefined));
+});
+
+check("a Solana wallet still gets its plugins", () => {
+  // The regression guard for the fix above.
+  const req = wallet("solana", [
+    { symbol: "USDC", amount: 900, usdValue: 900 },
+    { symbol: "SOL", amount: 1, usdValue: 100 },
+  ]);
+  const steps = buildPlan(req, computeStats(req)).steps;
+  assert.match(JSON.stringify(steps), /Kamino/);
+  assert.ok(steps.some((s) => s.action.includes("SOL")));
+  assert.ok(steps.some((s) => s.executeWith?.includes("PayBox plugin")));
+});
+
+check("a mixed wallet keeps the Solana plugins it can use", () => {
+  const req = {
+    wallets: [
+      { chain: "solana" as const, address: "SoLAddr", balances: [{ symbol: "SOL", amount: 1, usdValue: 100 }] },
+      { chain: "evm" as const, address: "0xabc", balances: [{ symbol: "ETH", amount: 0.04, usdValue: 100 }] },
+    ],
+  };
+  const steps = buildPlan(req, computeStats(req)).steps;
+  assert.match(JSON.stringify(steps), /Jupiter/);
+});
+
 if (failures > 0) {
   console.error(`\n${failures} failing`);
   process.exit(1);

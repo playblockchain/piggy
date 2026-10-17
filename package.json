@@ -15,7 +15,8 @@
     "prebuild": "node scripts/check-cohorts.mjs",
     "test": "npm run test:history && npm run test:card && npm run check:cohorts",
     "harvest": "node --experimental-strip-types scripts/harvest-cohorts.ts",
-    "test:card": "node --experimental-strip-types scripts/test-card.ts"
+    "test:card": "node --experimental-strip-types scripts/test-card.ts",
+    "dry": "node --experimental-strip-types scripts/dry-run.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2",
