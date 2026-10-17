@@ -189,10 +189,18 @@ export function pickPersona(req: AnalyzeRequest, stats: Stats): Persona {
   };
 }
 
+export interface PerpsHistory {
+  venue: string;
+  interactions: number;
+  firstAt: string;
+  lastAt: string;
+}
+
 export function pickMood(
   stats: Stats,
   persona: Persona,
   habits?: HabitReading,
+  perpsHistory: PerpsHistory[] = [],
 ): { mood: Mood; because: string } {
   const longTail = stats.longTailShare.value;
   const staked = stats.stakedShare.value ?? 0;
@@ -244,6 +252,14 @@ export function pickMood(
       because: "More than half of this is dog coins, babe. I am lying down about it.",
     };
   }
+  // Calling a holdings snapshot "nothing silly" while the history shows a
+  // perps habit is the kind of praise that makes a product worthless.
+  if (perpsHistory.length > 0 && staked + stable > 0.5) {
+    return {
+      mood: "suspicious",
+      because: `Tidy today, but you were on ${perpsHistory[0].venue} ${perpsHistory[0].interactions} times. I have a long memory.`,
+    };
+  }
   if (staked + stable > 0.7 && longTail < 0.1) {
     return {
       mood: "proud",
@@ -278,6 +294,7 @@ export function pickScenario(
   req: AnalyzeRequest,
   stats: Stats,
   habits?: HabitReading,
+  perpsHistory: PerpsHistory[] = [],
 ): { scenario: Scenario; because: string } {
   const longTail = stats.longTailShare.value;
   const staked = stats.stakedShare.value ?? 0;
@@ -299,6 +316,13 @@ export function pickScenario(
   if ((req.positions?.perps?.length ?? 0) > 0) {
     return { scenario: "perps_leverage", because: "You have open perps positions." };
   }
+  if (perpsHistory.length > 0) {
+    const h = perpsHistory[0];
+    return {
+      scenario: "perps_leverage",
+      because: `${h.interactions} interactions with ${h.venue} between ${h.firstAt.slice(0, 10)} and ${h.lastAt.slice(0, 10)}. Nothing open right now.`,
+    };
+  }
   if (longTail === null) {
     return { scenario: "unknown", because: "No prices were supplied, so I cannot weigh anything." };
   }
@@ -317,7 +341,11 @@ export function pickScenario(
   return { scenario: "unknown", because: "Nothing in this snapshot stands out as a habit." };
 }
 
-export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[]; disclaimer: string } {
+export function buildPlan(
+  req: AnalyzeRequest,
+  stats: Stats,
+  perpsHistory: PerpsHistory[] = [],
+): { steps: PlanStep[]; disclaimer: string } {
   const steps: PlanStep[] = [];
   const stable = stats.stableShare.value;
   const staked = stats.stakedShare.value;
@@ -378,6 +406,14 @@ export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[
       action: "Cap prediction-market bets to fun money",
       piggySays: "Betting on the future is cute. Betting the rent on it is not.",
       risk: "Open bets can resolve to zero, and there is no partial credit for being nearly right.",
+    });
+  }
+  if (perps.length === 0 && perpsHistory.length > 0) {
+    const h = perpsHistory[0];
+    steps.push({
+      action: `Decide whether you are done with ${h.venue}`,
+      piggySays: "Nothing open today, but we both remember what happened. Is that a phase or a plan?",
+      risk: "Past trades are history, not a prediction. Going back in carries the same risk it did then.",
     });
   }
   if (req.goal) {

@@ -107,6 +107,7 @@ const handler = async (request: NextRequest) => {
 
   // EVM history: the six months of behaviour behind the holdings.
   let evmHistory: AnalyzeResponse["evmHistory"];
+  let perpsHistory: Array<{ venue: string; interactions: number; firstAt: string; lastAt: string }> = [];
   const firstEvm = (req.addresses ?? []).find((a) => /^0x[a-fA-F0-9]{40}$/.test(a));
   if (firstEvm) {
     const hist = await fetchEvmHistory(firstEvm);
@@ -116,8 +117,15 @@ const handler = async (request: NextRequest) => {
         status: "ok",
         funding: habits.funding,
         topCounterparties: habits.topCounterparties,
+        ...(habits.venueUse.length ? { venueUse: habits.venueUse } : {}),
         ...(hist.chains ? { chains: hist.chains } : {}),
       };
+
+      // Past use of a perps venue is behaviour, but it is NOT an open
+      // position. Writing it into positions.perps made Piggy say "size down
+      // the open perps" about trades closed two months ago. It travels as its
+      // own signal so the two claims stay separate.
+      perpsHistory = habits.venueUse.filter((v) => v.kind === "perps");
     } else {
       evmHistory = { status: hist.status, message: hist.message };
     }
@@ -142,10 +150,10 @@ const handler = async (request: NextRequest) => {
       ? deriveHabits(solanaAddress as string, historyResult.transactions)
       : undefined;
 
-  const mood = pickMood(stats, persona, habits);
-  const scenario = pickScenario(req, stats, habits);
+  const mood = pickMood(stats, persona, habits, perpsHistory);
+  const scenario = pickScenario(req, stats, habits, perpsHistory);
   const band = pickBand(stats);
-  const plan = buildPlan(req, stats);
+  const plan = buildPlan(req, stats, perpsHistory);
   const cohort = readCohort(req, stats);
   const asOf = new Date().toISOString();
 

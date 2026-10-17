@@ -108,23 +108,30 @@ export async function fetchEvmHistory(
     };
   }
 
-  // Per chain, so a network that is not enabled on the key costs only that
-  // network. Failing all three because one is switched off would report a
-  // wallet as quiet when it is merely unread.
-  const perChain = await Promise.all(
-    chains.map(async (chain) => {
+  // Sequential, not parallel. Firing six of these at once tripped the free
+  // tier's rate limit and a chain came back empty — which reads as "this
+  // wallet did nothing" rather than "I was throttled". One retry covers a
+  // transient limit.
+  const perChain: Array<{ chain: EvmChain; ok: boolean; transfers: Transfer[]; message?: string }> = [];
+  for (const chain of chains) {
+    let attempt = 0;
+    for (;;) {
       try {
-        const [into, outOf] = await Promise.all([
-          transfersFor(chain, address, key, "in"),
-          transfersFor(chain, address, key, "out"),
-        ]);
-        const transfers = [...into, ...outOf].filter((t) => t.at);
-        return { chain, ok: true, transfers };
+        const into = await transfersFor(chain, address, key, "in");
+        const outOf = await transfersFor(chain, address, key, "out");
+        perChain.push({ chain, ok: true, transfers: [...into, ...outOf].filter((t) => t.at) });
+        break;
       } catch (err) {
-        return { chain, ok: false, transfers: [] as Transfer[], message: (err as Error).message };
+        if (attempt === 0) {
+          attempt += 1;
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+        perChain.push({ chain, ok: false, transfers: [], message: (err as Error).message });
+        break;
       }
-    }),
-  );
+    }
+  }
 
   const transfers = perChain.flatMap((c) => c.transfers);
   transfers.sort((a, b) => a.at.localeCompare(b.at));
@@ -146,7 +153,17 @@ export async function fetchEvmHistory(
   return { status: "ok", transfers, chains: chainReport };
 }
 
+export interface VenueUse {
+  venue: string;
+  kind: "perps" | "prediction" | "lending";
+  interactions: number;
+  firstAt: string;
+  lastAt: string;
+}
+
 export interface EvmHabits {
+  /** Venues this wallet actually used, from history rather than open positions. */
+  venueUse: VenueUse[];
   /** Inbound stablecoin arrivals: the funding signature, same as on Solana. */
   funding: { depositCount: number; medianUsd: number | null; regularity: string; measured: string };
   /** Contracts this wallet keeps going back to — where its behaviour lives. */
@@ -155,6 +172,18 @@ export interface EvmHabits {
 }
 
 const STABLE_ASSETS = new Set(["USDC", "USDT", "DAI", "USDC.E", "PYUSD"]);
+
+/**
+ * Venues worth naming. A wallet that keeps returning to a perps contract is
+ * doing perps, whether or not a position is open right now — which is the
+ * history that a balance check and a live-position check both miss.
+ *
+ * Addresses verified on Basescan rather than assumed.
+ */
+const KNOWN_CONTRACTS: Record<string, { venue: string; kind: "perps" | "prediction" | "lending" }> = {
+  "0x44914408af82bc9983bbb330e3578e1105e11d4e": { venue: "Veranta", kind: "perps" },
+  "0x8a311d7048c35985aa31c131b9a13e03a5f7422d": { venue: "Veranta", kind: "perps" },
+};
 const MIN_SPAN_DAYS = 21;
 
 const median = (xs: number[]): number | null => {
@@ -222,7 +251,30 @@ export function deriveEvmHabits(address: string, transfers: Transfer[], sinceDay
     .sort((a, b) => b.interactions - a.interactions)
     .slice(0, 8);
 
+  // Which known venues this wallet used, and over what stretch.
+  const venueAgg = new Map<string, { kind: VenueUse["kind"]; n: number; first: string; last: string }>();
+  for (const t of recent) {
+    const other = t.direction === "out" ? t.to : t.from;
+    const known = KNOWN_CONTRACTS[other];
+    if (!known) continue;
+    const prev = venueAgg.get(known.venue);
+    venueAgg.set(known.venue, {
+      kind: known.kind,
+      n: (prev?.n ?? 0) + 1,
+      first: prev && prev.first < t.at ? prev.first : t.at,
+      last: prev && prev.last > t.at ? prev.last : t.at,
+    });
+  }
+  const venueUse: VenueUse[] = [...venueAgg.entries()].map(([venue, v]) => ({
+    venue,
+    kind: v.kind,
+    interactions: v.n,
+    firstAt: v.first,
+    lastAt: v.last,
+  }));
+
   return {
+    venueUse,
     funding: {
       depositCount: deposits.length,
       medianUsd: median(deposits.map((d) => d.value ?? 0)),
