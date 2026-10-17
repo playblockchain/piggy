@@ -159,6 +159,12 @@ export interface HabitReading {
   };
   dca: { detected: boolean; measured: string };
   raidingSavings: { detected: boolean; measured: string };
+  /**
+   * Machine-rate activity. Routers, market makers and bots are not people with
+   * habits, and shaming one is both wrong and absurd — so when this is set,
+   * every habit above is ignored rather than narrated.
+   */
+  machineLike: { detected: boolean; measured: string };
 }
 
 const median = (xs: number[]): number | null => {
@@ -175,6 +181,10 @@ function stddev(xs: number[]): number | null {
 }
 
 const DAY = 86400;
+/** Deposits must span at least this long before cadence means anything. */
+const MIN_SPAN_DAYS = 21;
+/** Above this many transactions a day, treat the wallet as a machine. */
+const MACHINE_TX_PER_DAY = 20;
 
 /**
  * Pure: derives habits from parsed transactions. No network, no clock — so it
@@ -211,8 +221,19 @@ export function deriveHabits(address: string, txs: ParsedTx[]): HabitReading {
     .map((d, i) => (d.timestamp - inbound[i].timestamp) / DAY);
   const gapSpread = stddev(gapsDays);
 
+  const depositSpanDays =
+    inbound.length >= 2
+      ? (inbound[inbound.length - 1].timestamp - inbound[0].timestamp) / DAY
+      : 0;
+
+  /**
+   * Regularity needs deposits spread over real time. Without the span check,
+   * seventy deposits inside one afternoon score a gap spread near zero and get
+   * called "regular" — the most regular saver imaginable, who is in fact a bot
+   * having a busy minute. Evenly spaced is only meaningful across weeks.
+   */
   let regularity: HabitReading["funding"]["regularity"] = "unknown";
-  if (inbound.length >= 3 && gapSpread !== null) {
+  if (inbound.length >= 3 && gapSpread !== null && depositSpanDays >= MIN_SPAN_DAYS) {
     regularity = gapSpread <= 10 ? "regular" : "irregular";
   }
 
@@ -239,7 +260,20 @@ export function deriveHabits(address: string, txs: ParsedTx[]): HabitReading {
     ),
   );
 
+  // Velocity across everything the window returned, not just deposits.
+  const allStamps = txs.map((t) => t.timestamp ?? 0).filter((t) => t > 0).sort((a, b) => a - b);
+  const windowDays =
+    allStamps.length >= 2 ? (allStamps[allStamps.length - 1] - allStamps[0]) / DAY : 0;
+  const perDay = windowDays > 0 ? allStamps.length / windowDays : allStamps.length;
+  const machineLike = allStamps.length >= 20 && perDay > MACHINE_TX_PER_DAY;
+
   return {
+    machineLike: {
+      detected: machineLike,
+      measured: machineLike
+        ? `${allStamps.length} transactions across about ${windowDays.toFixed(1)} days — roughly ${Math.round(perDay)} a day, which is machine pace, not a person.`
+        : `${allStamps.length} transactions across about ${windowDays.toFixed(1)} days.`,
+    },
     funding: {
       depositCount: inbound.length,
       medianDepositUsdc: median(inbound.map((d) => d.amount)),
@@ -247,10 +281,14 @@ export function deriveHabits(address: string, txs: ParsedTx[]): HabitReading {
       measured:
         inbound.length === 0
           ? "No inbound USDC transfers in the window I can see."
-          : `${inbound.length} inbound USDC transfers, median ${
+          : `${inbound.length} inbound USDC transfers over about ${depositSpanDays.toFixed(0)} days, median ${
               median(inbound.map((d) => d.amount))?.toFixed(2) ?? "unknown"
             } USDC${
-              gapSpread !== null ? `, gaps between them varying by about ${gapSpread.toFixed(0)} days` : ""
+              depositSpanDays < MIN_SPAN_DAYS
+                ? " — too short a stretch to call a rhythm"
+                : gapSpread !== null
+                  ? `, gaps varying by about ${gapSpread.toFixed(0)} days`
+                  : ""
             }.`,
     },
     dca: {

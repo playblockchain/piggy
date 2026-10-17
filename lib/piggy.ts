@@ -196,14 +196,16 @@ export function pickMood(
   const concentration = stats.concentration.value ?? 0;
 
   // Habits read from history outrank anything a snapshot can show: what you
-  // keep doing says more than what you happen to hold today.
-  if (habits?.raidingSavings.detected) {
+  // keep doing says more than what you happen to hold today — unless the
+  // wallet is running at machine pace, in which case there is no "you".
+  const h = habits && !habits.machineLike.detected ? habits : undefined;
+  if (h?.raidingSavings.detected) {
     return {
       mood: "sad",
       because: "You keep going back into your own savings. I saw. I write everything down.",
     };
   }
-  if (habits?.dca.detected && (longTail === null || longTail < 0.5)) {
+  if (h?.dca.detected && (longTail === null || longTail < 0.5)) {
     return {
       mood: "excited",
       because: "You are buying on a rhythm like a person with a FINANCIAL PLAN. I am obsessed.",
@@ -279,8 +281,10 @@ export function pickScenario(
 
   // Habits over time first, since they are the harder-won signal. Each
   // `because` repeats what was actually counted rather than asserting intent.
-  if (habits?.raidingSavings.detected) {
-    return { scenario: "raiding_savings", because: habits.raidingSavings.measured };
+  // Machine-pace wallets get no habit narration at all.
+  const h = habits && !habits.machineLike.detected ? habits : undefined;
+  if (h?.raidingSavings.detected) {
+    return { scenario: "raiding_savings", because: h.raidingSavings.measured };
   }
   if (stats.totalUsd.value !== null && stats.totalUsd.value <= 0) {
     return { scenario: "empty_wallet", because: "Nothing to read yet." };
@@ -297,8 +301,8 @@ export function pickScenario(
   if (longTail > 0.5) {
     return { scenario: "buying_memecoins", because: "Most of your balance is long-tail tokens." };
   }
-  if (habits?.dca.detected) {
-    return { scenario: "dca_saving", because: habits.dca.measured };
+  if (h?.dca.detected) {
+    return { scenario: "dca_saving", because: h.dca.measured };
   }
   if (staked > 0.3) {
     return { scenario: "staking_yield", because: "A real share of your balance is staked." };
@@ -377,10 +381,17 @@ export function blindSpots(
   req: AnalyzeRequest,
   stats: Stats,
   historyMessage?: string,
+  machineLike?: string,
 ): string[] {
   const out: string[] = [];
   if (stats.totalUsd.value === null) {
     out.push("No USD prices were supplied, so every share below is unavailable.");
+  }
+  if (machineLike) {
+    // Say why no habits were narrated, rather than silently reporting none.
+    out.push(
+      `This wallet moves at machine pace, so I did not read habits from it: ${machineLike} Routers and bots do not have feelings, and I refuse to pretend otherwise.`,
+    );
   }
   if (historyMessage) {
     // History could not be read, so habits over time are genuinely unknown.

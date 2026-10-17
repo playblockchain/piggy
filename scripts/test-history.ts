@@ -123,6 +123,36 @@ check("tolerates transactions missing fields entirely", () => {
   assert.equal(h.dca.detected, false);
 });
 
+
+// --- regressions found by running against a real wallet ---
+
+check("does not call a burst of deposits regular", () => {
+  // 70 deposits inside one afternoon: gap spread is near zero, which looked
+  // like the most regular saver alive. It is a bot having a busy minute.
+  const burst = Array.from({ length: 70 }, (_, i) => deposit(i * 0.004, 3));
+  const h = deriveHabits(ME, burst);
+  assert.equal(h.funding.regularity, "unknown");
+});
+
+check("still calls genuinely spread deposits regular", () => {
+  const h = deriveHabits(ME, [deposit(0, 100), deposit(14, 100), deposit(28, 100), deposit(42, 100)]);
+  assert.equal(h.funding.regularity, "regular");
+});
+
+check("flags machine-pace wallets", () => {
+  const busy = Array.from({ length: 94 }, (_, i) => swap(i * 0.01));
+  assert.equal(deriveHabits(ME, busy).machineLike.detected, true);
+});
+
+check("does not flag a human pace as machine", () => {
+  const human = Array.from({ length: 30 }, (_, i) => swap(i * 3));
+  assert.equal(deriveHabits(ME, human).machineLike.detected, false);
+});
+
+check("too few transactions is never machine-like", () => {
+  assert.equal(deriveHabits(ME, [swap(0), swap(0.01)]).machineLike.detected, false);
+});
+
 if (failures > 0) {
   console.error(`\n${failures} failing`);
   process.exit(1);

@@ -154,6 +154,7 @@ export interface AnalyzeResponse {
     funding?: { depositCount: number; medianDepositUsdc: number | null; regularity: string; measured: string };
     dca?: { detected: boolean; measured: string };
     raidingSavings?: { detected: boolean; measured: string };
+    machineLike?: { detected: boolean; measured: string };
   };
   stats: Stats;
   plan: { steps: PlanStep[]; disclaimer: string };
