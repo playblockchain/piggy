@@ -17,7 +17,8 @@ export async function generateMetadata({
 }
 
 export default async function ShortCardPage({ params }: { params: Promise<{ id: string }> }) {
-  const card = await loadCard((await params).id);
+  const { id } = await params;
+  const card = await loadCard(id);
 
   if (!card) {
     return (
@@ -36,7 +37,7 @@ export default async function ShortCardPage({ params }: { params: Promise<{ id: 
 
   return (
     <main className={styles.page}>
-      <CardView card={card} />
+      <CardView card={card} stored imageHref={`/c/${id}/opengraph-image`} />
       <p className={styles.tagline}>little pig, big feelings</p>
     </main>
   );

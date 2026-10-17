@@ -70,6 +70,33 @@ const ENTRIES: Entry[] = [
     },
   },
   {
+    title: "All in one major",
+    when:
+      "Nothing but ETH. The card used to show stablecoins, staked and long-tail — all three genuinely zero — and read as broken. It now shows the slice that is actually there.",
+    card: {
+      persona: {
+        id: "stable-queen",
+        name: "Degen On A Leash",
+        because: "Everything in ETH and nothing else. Bold, uncomplicated, slightly worrying.",
+      },
+      mood: {
+        mood: "suspicious",
+        because: "One asset, no hedge, and a history I have not forgotten.",
+      },
+      stats: {
+        stableShare: 0,
+        stakedShare: 0,
+        longTailShare: 0.0003,
+        majorShare: 0.9997,
+        totalKnown: true,
+      },
+      cohort: noCohort,
+      asOf,
+      band: "dust",
+      scenario: "perps_leverage",
+    },
+  },
+  {
     title: "No prices supplied",
     when: "Caller sent balances without USD values. Shares are genuinely uncomputable.",
     card: {

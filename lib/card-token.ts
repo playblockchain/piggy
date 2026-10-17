@@ -12,6 +12,11 @@ export interface CardPayload {
     stableShare: number | null;
     stakedShare: number | null;
     longTailShare: number | null;
+    /**
+     * Optional: cards made before majors were shown do not carry it, and
+     * `composition()` derives it from the other three for those.
+     */
+    majorShare?: number | null;
     totalKnown: boolean;
   };
   cohort: { status: "ok" | "unavailable"; label?: string; note: string };

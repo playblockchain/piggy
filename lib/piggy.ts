@@ -47,9 +47,14 @@ function shareOf(balances: TokenBalance[], predicate: (b: TokenBalance) => boole
 
 const symbolOf = (b: TokenBalance) => b.symbol.toUpperCase();
 
-export function computeStats(req: AnalyzeRequest): Stats {
+/**
+ * Every number carries where it came from, so the source string has to be the
+ * truth. It used to be hardcoded to "PayBox get_portfolio" — false as soon as
+ * Piggy started reading addresses itself, which meant the card credited PayBox
+ * for figures that came from Alchemy, Helius and Jupiter.
+ */
+export function computeStats(req: AnalyzeRequest, source = "balances supplied by the caller"): Stats {
   const balances = (req.wallets ?? []).flatMap((w) => w.balances);
-  const source = "PayBox get_portfolio";
   const total = pricedTotal(balances);
 
   // When nothing is priced, every share is unknown. We do not fall back to
@@ -454,8 +459,21 @@ export function blindSpots(
   infrastructure?: string,
   /** Venues Piggy actually asked. Checked-and-empty is not the same as unknown. */
   venuesChecked?: string[],
+  /** Spam airdrops left out of the balances. */
+  advertsIgnored?: number,
 ): string[] {
   const out: string[] = [];
+  if (advertsIgnored && advertsIgnored > 0) {
+    // Explains why Piggy's token count is lower than a block explorer's, and
+    // declines to repeat a phishing lure back at the person holding it.
+    out.push(
+      `I ignored ${advertsIgnored} airdropped ${
+        advertsIgnored === 1 ? "token whose name was" : "tokens whose names were"
+      } an advert or a fake version of a real coin. ${
+        advertsIgnored === 1 ? "It is" : "They are"
+      } not ${advertsIgnored === 1 ? "a holding" : "holdings"} and I will not read a scam link out to you.`,
+    );
+  }
   if (stats.totalUsd.value === null) {
     out.push("No USD prices were supplied, so every share below is unavailable.");
   }

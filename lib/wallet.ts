@@ -26,6 +26,44 @@ export interface WalletFetch {
   balances: FetchedBalance[];
   /** Specific reason when ok is false. */
   message?: string;
+  /** Airdropped adverts left out of `balances` — reported, never silent. */
+  advertsIgnored?: number;
+}
+
+/**
+ * Airdropped adverts, not holdings.
+ *
+ * Reading the whole wallet surfaced what the narrow Base read never did: of
+ * flexcopy.eth's 67 "tokens", most were spam airdrops whose symbol is a sales
+ * pitch — "Visit https://… to claim airdrop", a Telegram link, or USDC spelled
+ * with a Cyrillic С to impersonate the real one. Counting those as assets
+ * overstates what someone holds, and printing them repeats a phishing lure
+ * back to the person being phished.
+ *
+ * Only unpriced tokens are tested: if a market prices it, it is real enough to
+ * report whatever it is called. An odd ticker survives too — the test is
+ * whether the symbol is advertising, not whether we recognise it. So DRAW,
+ * CHICKENMATE and yukinoki stay, as honestly unpriced long-tail dust.
+ */
+const ADVERT =
+  /https?:|www\.|t\.me|\.(?:com|xyz|io|net|org|app|me|link|site|pro|vip|top|fi|so|finance)\b|claim|airdrop|redeem|voucher|reward|visit /i;
+
+function looksLikeAdvert(symbol: string): boolean {
+  const s = symbol.trim();
+  // Real tickers are short, single-word and Latin.
+  if (s.length > 16 || /\s/.test(s)) return true;
+  if (ADVERT.test(s)) return true;
+  // Cyrillic or Greek letters inside an otherwise Latin ticker is impersonation.
+  return /[Ѐ-ӿͰ-Ͽ]/.test(s);
+}
+
+/** Drops advert tokens, returning what is left and how many went. */
+function dropAdverts(balances: FetchedBalance[]): {
+  balances: FetchedBalance[];
+  advertsIgnored: number;
+} {
+  const kept = balances.filter((b) => b.usdValue !== undefined || !looksLikeAdvert(b.symbol));
+  return { balances: kept, advertsIgnored: balances.length - kept.length };
 }
 
 /** The assets that change a verdict. Everything else is long-tail on purpose. */
@@ -136,7 +174,14 @@ export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
 
     // Dust below a cent is noise, and it drags the long-tail share around.
     const meaningful = balances.filter((b) => (b.usdValue ?? 0) >= 0.01 || b.usdValue === undefined);
-    return { ok: true, chain: "solana", address, balances: meaningful };
+    const cleaned = dropAdverts(meaningful);
+    return {
+      ok: true,
+      chain: "solana",
+      address,
+      balances: cleaned.balances,
+      ...(cleaned.advertsIgnored ? { advertsIgnored: cleaned.advertsIgnored } : {}),
+    };
   } catch (err) {
     return {
       ok: false,
@@ -215,7 +260,14 @@ async function fetchEvmPortfolio(address: string, key: string): Promise<WalletFe
     });
   }
 
-  return { ok: true, chain: "evm", address, balances };
+  const cleaned = dropAdverts(balances);
+  return {
+    ok: true,
+    chain: "evm",
+    address,
+    balances: cleaned.balances,
+    ...(cleaned.advertsIgnored ? { advertsIgnored: cleaned.advertsIgnored } : {}),
+  };
 }
 
 export async function fetchEvmWallet(address: string): Promise<WalletFetch> {

@@ -1,5 +1,6 @@
 import { Piggy } from "@/app/piggy";
 import type { CardPayload } from "@/lib/card-token";
+import { composition } from "@/lib/composition";
 import type { Mood } from "@/lib/types";
 import styles from "./card-view.module.css";
 
@@ -19,24 +20,18 @@ const MOOD_BAR: Record<Mood, { bar: string; chip: string }> = {
   unhinged: { bar: "windowBar--pink", chip: styles["moodChip--pink"] },
 };
 
-function pct(share: number | null): string | null {
-  if (share === null || Number.isNaN(share)) return null;
-  return `${Math.round(share * 100)}%`;
-}
-
-function Stat({ label, share }: { label: string; share: number | null }) {
-  const formatted = pct(share);
+function Stat({ label, share }: { label: string; share: number }) {
   return (
     <div className={styles.stat}>
-      {formatted ? (
-        <div className={styles.statValue}>{formatted}</div>
-      ) : (
-        <span className={styles.statValueUnknown}>Not available</span>
-      )}
+      <div className={styles.statValue}>{Math.round(share * 100)}%</div>
       <div className={styles.statLabel}>{label}</div>
     </div>
   );
 }
+
+/** A filename someone can find again, rather than "opengraph-image.png". */
+const slug = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "card";
 
 function Dots() {
   return (
@@ -48,8 +43,19 @@ function Dots() {
   );
 }
 
-export function CardView({ card }: { card: CardPayload }) {
+export function CardView({
+  card,
+  /** The short route stores the card; the long one carries it in the URL. */
+  stored = false,
+  /** Set on a real card route so the image can be saved. The gallery has none. */
+  imageHref,
+}: {
+  card: CardPayload;
+  stored?: boolean;
+  imageHref?: string;
+}) {
   const { persona, mood, stats, cohort, asOf, band, scenario } = card;
+  const slices = composition(stats);
   const dated = new Date(asOf);
   const datedLabel = Number.isNaN(dated.getTime())
     ? "date unknown"
@@ -77,14 +83,17 @@ export function CardView({ card }: { card: CardPayload }) {
           What you hold · {datedLabel}
           {band ? ` · ${band}` : ""}
         </h2>
-        <div className={styles.stats}>
-          <Stat label="in stablecoins" share={stats.stableShare} />
-          <Stat label="staked" share={stats.stakedShare} />
-          <Stat label="long-tail" share={stats.longTailShare} />
-        </div>
-        {!stats.totalKnown && (
-          <p className={styles.note} style={{ marginTop: "var(--space-3)" }}>
-            No USD prices came with this snapshot, so shares could not be worked out.
+        {slices.length > 0 ? (
+          <div className={styles.stats}>
+            {slices.map((s) => (
+              <Stat key={s.label} label={s.label} share={s.share} />
+            ))}
+          </div>
+        ) : (
+          <p className={styles.note}>
+            {stats.totalKnown
+              ? "Nothing priced in here to split, so there is no make-up to report."
+              : "No USD prices could be found for this wallet, so shares are unavailable."}
           </p>
         )}
       </section>
@@ -97,10 +106,20 @@ export function CardView({ card }: { card: CardPayload }) {
         <p className={styles.note}>{cohort.note}</p>
       </section>
 
+      {imageHref && (
+        <div className={styles.actions}>
+          <a className={styles.action} href={imageHref} download={`lil-piggy-${slug(persona.name)}.png`}>
+            Save card as PNG
+          </a>
+        </div>
+      )}
+
       <footer className={styles.footer}>
         Lil Piggy is education, not financial advice. This is a snapshot of holdings, not a record
-        of what you did or a forecast of what you will get. Everything here is encoded in this link
-        itself — Lil Piggy keeps nothing.
+        of what you did or a forecast of what you will get.{" "}
+        {stored
+          ? "This card is saved behind its short link so it can be shared: it holds the verdict you see here and nothing else — no address, no balances."
+          : "Everything here is encoded in this link itself — Lil Piggy keeps nothing."}
       </footer>
     </article>
   );

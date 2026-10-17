@@ -191,3 +191,48 @@
     font-size: 26px;
   }
 }
+
+/*
+ * Saving the card.
+ *
+ * "There's no option to download, save any of that" — the card was a page you
+ * looked at and left. The PNG already existed for link previews; this just
+ * hands it over.
+ */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  /* Its own band — without this it reads as part of the cohort block above. */
+  border-top: var(--stroke-hair) solid var(--panel-grid);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h);
+  padding: 0 var(--space-4);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--r-control);
+  background: var(--field-butter);
+  box-shadow: var(--sh-control);
+  font: 400 var(--fs-btn) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+
+.action:hover { background: var(--field-pink); }
+.action:focus-visible { outline: var(--stroke) solid var(--blue); outline-offset: 3px; }
+.action:active {
+  transform: translate(-2px, 2px);
+  box-shadow: var(--sh-pressed);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action { transition: none; }
+  .action:active { transform: none; }
+}

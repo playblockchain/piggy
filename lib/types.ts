@@ -168,7 +168,15 @@ export interface AnalyzeResponse {
   /** What Piggy could not see, stated plainly rather than guessed. */
   blindSpots: string[];
   /** Per-address result when addresses were supplied, so failures are visible. */
-  resolved?: Array<{ address: string; chain: string; ok: boolean; tokens: number; message?: string }>;
+  resolved?: Array<{
+    address: string;
+    chain: string;
+    ok: boolean;
+    tokens: number;
+    /** Spam airdrops excluded from `tokens`, so the count can be reconciled. */
+    advertsIgnored?: number;
+    message?: string;
+  }>;
   /** EVM transaction history, when a key makes it readable. */
   evmHistory?: {
     status: string;

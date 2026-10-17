@@ -43,7 +43,7 @@ export default async function CardPage({ params }: { params: Promise<{ token: st
 
   return (
     <main className={styles.page}>
-      <CardView card={card} />
+      <CardView card={card} imageHref={`/card/${token}/opengraph-image`} />
       <p className={styles.tagline}>little pig, big feelings</p>
     </main>
   );

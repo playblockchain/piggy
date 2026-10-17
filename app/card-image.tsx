@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import type { CardPayload } from "@/lib/card-token";
+import { composition } from "@/lib/composition";
 
 /**
  * The card's preview image, shared by both the short and long card routes so
@@ -25,8 +26,8 @@ const MOOD_BAR: Record<string, string> = {
 const INK = "#A76E80";
 const TEXT = "#6C4550";
 
-function pct(v: number | null): string {
-  return v === null || Number.isNaN(v) ? "—" : `${Math.round(v * 100)}%`;
+function pct(v: number): string {
+  return `${Math.round(v * 100)}%`;
 }
 
 /**
@@ -57,6 +58,8 @@ export function renderCardImage(card: CardPayload | null): ImageResponse {
   const mood = card ? `Piggy is ${card.mood.mood}` : "";
   const because = card?.mood.because ?? "Ask your agent for a fresh card.";
   const piggy = card ? piggyDataUri(card.mood.mood, card.scenario) : null;
+  // Same slices as the page, so the preview never contradicts the card.
+  const slices = card ? composition(card.stats) : [];
 
   return new ImageResponse(
     (
@@ -139,19 +142,13 @@ export function renderCardImage(card: CardPayload | null): ImageResponse {
               <img src={piggy} width={230} height={230} alt="" style={{ borderRadius: 18 }} />
             )}
 
-            {card && (
+            {slices.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 18, width: 190 }}>
-                {[
-                  ["in stablecoins", card.stats.stableShare],
-                  ["staked", card.stats.stakedShare],
-                  ["long-tail", card.stats.longTailShare],
-                ].map(([label, value]) => (
-                  <div key={label as string} style={{ display: "flex", flexDirection: "column" }}>
-                    <div style={{ fontSize: 44, fontWeight: 700, color: TEXT }}>
-                      {pct(value as number | null)}
-                    </div>
+                {slices.map((s) => (
+                  <div key={s.label} style={{ display: "flex", flexDirection: "column" }}>
+                    <div style={{ fontSize: 44, fontWeight: 700, color: TEXT }}>{pct(s.share)}</div>
                     <div style={{ fontSize: 20, letterSpacing: 2, color: TEXT, textTransform: "uppercase" }}>
-                      {label as string}
+                      {s.label}
                     </div>
                   </div>
                 ))}

@@ -67,6 +67,9 @@ const handler = async (request: NextRequest) => {
   // Addresses supplied: go and read them, rather than trusting a balance list
   // the caller typed.
   const resolved: AnalyzeResponse["resolved"] = [];
+  const callerSuppliedBalances = (req.wallets ?? []).length > 0;
+  const readChains = new Set<"solana" | "evm">();
+  let advertsIgnored = 0;
   if (req.addresses?.length) {
     // People paste names. Resolve them before anything else looks at them.
     const inputs = req.addresses.slice(0, 5);
@@ -76,11 +79,14 @@ const handler = async (request: NextRequest) => {
     req = { ...req, addresses };
     const fetched = await Promise.all(addresses.map((a) => fetchWallet(a)));
     for (const f of fetched) {
+      if (f.ok) readChains.add(f.chain);
+      advertsIgnored += f.advertsIgnored ?? 0;
       resolved.push({
         address: f.address,
         chain: f.chain,
         ok: f.ok,
         tokens: f.balances.length,
+        ...(f.advertsIgnored ? { advertsIgnored: f.advertsIgnored } : {}),
         ...(f.message ? { message: f.message } : {}),
       });
     }
@@ -139,7 +145,13 @@ const handler = async (request: NextRequest) => {
     }
   }
 
-  const stats = computeStats(req);
+  // Name the real source. These numbers stopped coming from PayBox the moment
+  // Piggy started reading addresses itself.
+  const sources: string[] = [];
+  if (readChains.has("evm")) sources.push("Alchemy (Ethereum, Base, Polygon)");
+  if (readChains.has("solana")) sources.push("Helius and Jupiter (Solana)");
+  if (callerSuppliedBalances) sources.push("balances supplied by the caller");
+  const stats = computeStats(req, sources.join(" + ") || "balances supplied by the caller");
   const persona = pickPersona(req, stats);
 
   // History comes from an indexer, not PayBox. Read the first Solana address;
@@ -173,6 +185,7 @@ const handler = async (request: NextRequest) => {
       stableShare: stats.stableShare.value,
       stakedShare: stats.stakedShare.value,
       longTailShare: stats.longTailShare.value,
+      majorShare: stats.majorShare.value,
       totalKnown: stats.totalUsd.value !== null,
     },
     cohort: { status: cohort.status, label: cohort.label, note: cohort.note },
@@ -213,6 +226,7 @@ const handler = async (request: NextRequest) => {
       habits ? undefined : historyResult.message,
       habits?.walletKind.kind === "infrastructure" ? habits.walletKind.because : undefined,
       positionsChecked.filter((v) => v.ok).map((v) => v.venue),
+      advertsIgnored,
     ),
     cardUrl: `${origin}${cardPath}`,
     cardImageUrl: `${origin}${cardPath}/opengraph-image`,
