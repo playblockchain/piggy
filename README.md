@@ -108,6 +108,18 @@ input — missing columns, shares outside 0–1, cohorts under 30 wallets — an
 alone rather than writing something plausible-looking. An empty cohorts file is a fine outcome;
 Piggy just says "not available".
 
+### Why cohorts are guarded three ways
+
+Cohort numbers are the one thing here a user could not check for themselves, so they are the one
+thing that must never be invented. Three separate guards, because one failed:
+
+1. `--out <path>` on the importer, so a test run cannot reach `data/cohorts.json`.
+2. `npm run check:cohorts` rejects a cohorts file that cannot prove its provenance — no date, no
+   source, a source that mentions fixture/test/sample data, shares that don't total 1, or a
+   cohort under 30 wallets.
+3. That check runs as `prebuild`, so it runs on Vercel too. Unprovenanced numbers fail the build
+   instead of reaching a card.
+
 The query's table and column names were checked against Dune's docs; the USDC mint constant was
 not, and the header says so.
 

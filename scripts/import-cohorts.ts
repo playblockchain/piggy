@@ -87,7 +87,18 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const csvPath = process.argv[2];
+/**
+ * `--out <path>` writes somewhere other than data/cohorts.json. Tests must use
+ * it: a test run that can reach the real data file is how invented fixture
+ * numbers end up on a card presented as measured fact.
+ */
+const argv = process.argv.slice(2);
+const outFlag = argv.indexOf("--out");
+const outPath =
+  outFlag !== -1 ? argv[outFlag + 1] : path.join(process.cwd(), "data", "cohorts.json");
+if (outFlag !== -1 && !argv[outFlag + 1]) fail("--out needs a path");
+const csvPath = argv.filter((a, i) => a !== "--out" && i !== outFlag + 1)[0];
+
 if (!csvPath) fail("pass the Dune CSV, e.g. npm run import:cohorts -- ~/Downloads/results.csv");
 if (!fs.existsSync(csvPath)) fail(`no file at ${csvPath}`);
 
@@ -159,10 +170,9 @@ const out = {
   cohorts,
 };
 
-const dest = path.join(process.cwd(), "data", "cohorts.json");
-fs.writeFileSync(dest, `${JSON.stringify(out, null, 2)}\n`);
+fs.writeFileSync(outPath, `${JSON.stringify(out, null, 2)}\n`);
 
-console.log(`import-cohorts: wrote ${cohorts.length} cohort(s) to data/cohorts.json`);
+console.log(`import-cohorts: wrote ${cohorts.length} cohort(s) to ${outPath}`);
 for (const c of cohorts) {
   console.log(`  ${c.label}: ${c.sampleSize} wallets, ${c.outcomes.length} outcome(s)`);
 }

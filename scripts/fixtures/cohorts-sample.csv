@@ -1,0 +1,6 @@
+funding_signature,behaviour,wallets,still_funded_share
+irregular_topup,overtraded,412,0.214
+irregular_topup,staked_and_sat,96,0.823
+irregular_topup,other,255,0.401
+regular_topup,staked_and_sat,338,0.901
+regular_topup,held_stables,120,0.845
