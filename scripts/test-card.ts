@@ -257,6 +257,35 @@ check("an empty wallet is not told to stake what it does not have", () => {
   assert.doesNotMatch(JSON.stringify(steps), /liquid staking/);
 });
 
+console.log("\ncodeMeansContract() — who counts as a person");
+
+const { codeMeansContract } = await import("../lib/address-kind.ts");
+
+check("an empty code answer is an ordinary wallet", () => {
+  assert.equal(codeMeansContract("0x"), false);
+  assert.equal(codeMeansContract(undefined), false);
+  assert.equal(codeMeansContract(null), false);
+});
+
+check("a deployed contract is not somebody's wallet", () => {
+  // The real USDC bytecode starts this way.
+  assert.equal(codeMeansContract("0x60806040526004361061006d5760003557c01"), true);
+});
+
+check("an EIP-7702 delegation is still somebody's wallet", () => {
+  // Both wallets this was first tested against came back delegated. Treating
+  // "has code" as "is a contract" called real people plumbing, and more
+  // wallets delegate every week.
+  assert.equal(codeMeansContract("0xef01005a7fc11397e9a8ad41bf10bf13f22b0a63f96f6d"), false);
+  assert.equal(codeMeansContract("0xef0100612373d7003d694220f7800eeaf8e3924c0951d3"), false);
+});
+
+check("something merely starting like a delegation is not one", () => {
+  // The indicator is exactly 23 bytes. Anything longer is real bytecode.
+  assert.equal(codeMeansContract("0xef01005a7fc11397e9a8ad41bf10bf13f22b0a63f96f6dAABBCC"), true);
+  assert.equal(codeMeansContract("0xef0100"), true);
+});
+
 if (failures > 0) {
   console.error(`\n${failures} failing`);
   process.exit(1);

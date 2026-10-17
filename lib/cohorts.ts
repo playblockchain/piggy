@@ -1,4 +1,4 @@
-import cohortData from "../data/cohorts.json";
+import cohortData from "../data/cohorts.json" with { type: "json" };
 import type { AnalyzeRequest, CohortReading, Stats } from "./types";
 
 /**

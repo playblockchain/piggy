@@ -101,7 +101,9 @@ export type PersonaId =
   | "dip-diva"
   | "delulu-degen"
   | "shrimp-gambler"
-  | "unreadable";
+  | "unreadable"
+  /** A contract or burn address: read, but never given a personality. */
+  | "not-a-wallet";
 
 export interface Persona {
   id: PersonaId;

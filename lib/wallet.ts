@@ -30,6 +30,8 @@ export interface WalletFetch {
   advertsIgnored?: number;
   /** Tokens kept but carried unpriced because the quote was not credible. */
   pricesRejected?: number;
+  /** Set when the wallet was too large to finish reading. */
+  partialRead?: string;
 }
 
 /**
@@ -214,6 +216,108 @@ async function nameSolanaMints(key: string | undefined, mints: string[]): Promis
   }
 }
 
+/**
+ * The same read through Helius DAS, for wallets the parsed form cannot survive.
+ *
+ * `getTokenAccountsByOwner` returns every token account a wallet has ever been
+ * given, including the empty ones. Airdrop farming means real wallets hold
+ * tens of thousands, and the response then exceeds Node's maximum string
+ * length — so a wallet holding 34 SOL was refused outright with "Cannot
+ * create a string longer than 0x1fffffe8 characters".
+ *
+ * DAS is paginated and skips zero balances, so it cannot blow up the same way.
+ * The wallet above has five assets with anything in them; the rest are empty
+ * accounts. It also carries decimals, symbols and prices, which is why the
+ * values here are used as-is rather than re-priced.
+ */
+async function fetchSolanaViaDas(
+  address: string,
+  key: string,
+): Promise<{ balances: FetchedBalance[]; partial?: string }> {
+  const out: FetchedBalance[] = [];
+  // Five pages is far more than any readable wallet; it bounds a pathological
+  // one rather than paging for ever.
+  for (let page = 1; page <= 5; page += 1) {
+    let res: Response | undefined;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * attempt));
+      res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getAssetsByOwner",
+          params: {
+            ownerAddress: address,
+            page,
+            limit: 1000,
+            displayOptions: { showFungible: true, showZeroBalance: false },
+          },
+        }),
+      });
+      if (res.ok) break;
+    }
+    if (!res) throw new Error("the asset index could not be reached");
+    if (!res.ok) {
+      if (page === 1) throw new Error(`asset page 1 returned ${res.status}`);
+      return { balances: out, partial: partialNote(out.length) };
+    }
+    const body = (await res.json()) as {
+      result?: {
+        items?: Array<{
+          id?: string;
+          content?: { metadata?: { symbol?: string; name?: string } };
+          token_info?: {
+            balance?: number;
+            decimals?: number;
+            symbol?: string;
+            price_info?: { total_price?: number; price_per_token?: number };
+          };
+        }>;
+      };
+    };
+    // A failed page must not quietly shorten the wallet. The same wallet read
+    // as 968 tokens once and as 1 the next time, with nothing saying which was
+    // true. Helius times out paging the most extreme wallets, so what is read
+    // is kept and the gap is reported rather than hidden or refused.
+    const items = body.result?.items;
+    if (!items) {
+      if (page === 1) throw new Error("the asset index would not answer for this address");
+      return { balances: out, partial: partialNote(out.length) };
+    }
+    for (const item of items) {
+      const info = item.token_info;
+      if (!info || !item.id) continue;
+      const decimals = info.decimals ?? 0;
+      const amount = (info.balance ?? 0) / 10 ** decimals;
+      if (!(amount > 0)) continue;
+      const price = info.price_info?.price_per_token;
+      const usdValue =
+        typeof info.price_info?.total_price === "number"
+          ? info.price_info.total_price
+          : typeof price === "number"
+            ? amount * price
+            : undefined;
+      out.push({
+        symbol: SOLANA_MINTS[item.id] ?? info.symbol ?? item.content?.metadata?.symbol ?? item.id.slice(0, 6),
+        assetId: item.id,
+        amount,
+        ...(usdValue !== undefined ? { usdValue } : {}),
+      });
+    }
+    // A full page means there is probably another. Running out of pages is
+    // itself a truncation and has to be said, or the cap silently becomes the
+    // answer.
+    if (items.length < 1000) return { balances: out };
+  }
+  return { balances: out, partial: partialNote(out.length) };
+}
+
+/** Said on the card when a wallet is too large for the index to finish. */
+const partialNote = (read: number) =>
+  `This wallet holds so many tokens that the asset index timed out part-way. I read the first ${read.toLocaleString()} and everything below is based on those, so treat the total as a floor rather than the whole picture.`;
+
 export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
   const key = process.env.HELIUS_API_KEY;
   const url = key
@@ -221,24 +325,37 @@ export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
     : "https://api.mainnet-beta.solana.com";
 
   try {
-    const [accounts, lamports] = await Promise.all([
-      rpc(url, "getTokenAccountsByOwner", [
+    const lamports = (await rpc(url, "getBalance", [address])) as { value?: number };
+
+    const raw: Array<{ mint: string; amount: number }> = [];
+    let partialRead: string | undefined;
+    try {
+      const accounts = (await rpc(url, "getTokenAccountsByOwner", [
         address,
         { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
         { encoding: "jsonParsed" },
-      ]) as Promise<{
+      ])) as {
         value?: Array<{
           account: { data: { parsed: { info: { mint: string; tokenAmount: { uiAmount: number | null } } } } };
         }>;
-      }>,
-      rpc(url, "getBalance", [address]) as Promise<{ value?: number }>,
-    ]);
-
-    const raw: Array<{ mint: string; amount: number }> = [];
-    for (const acc of accounts?.value ?? []) {
-      const info = acc.account.data.parsed.info;
-      const amount = info.tokenAmount.uiAmount ?? 0;
-      if (amount > 0) raw.push({ mint: info.mint, amount });
+      };
+      for (const acc of accounts?.value ?? []) {
+        const info = acc.account.data.parsed.info;
+        const amount = info.tokenAmount.uiAmount ?? 0;
+        if (amount > 0) raw.push({ mint: info.mint, amount });
+      }
+    } catch (err) {
+      // Too many token accounts for the parsed response. DAS pages and skips
+      // the empty ones, so a real wallet is read instead of refused. The
+      // holdings rejoin the normal path below so the native SOL balance, the
+      // pricing and the dust filter all still apply — an early return here
+      // dropped 34 SOL on the floor.
+      if (!key) throw err;
+      const das = await fetchSolanaViaDas(address, key);
+      partialRead = das.partial;
+      for (const b of das.balances) {
+        raw.push({ mint: b.assetId, amount: b.amount });
+      }
     }
     const sol = (lamports?.value ?? 0) / 1e9;
     if (sol > 0) raw.push({ mint: SOL_MINT, amount: sol });
@@ -275,6 +392,7 @@ export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
       balances: checked.balances,
       ...(cleaned.advertsIgnored ? { advertsIgnored: cleaned.advertsIgnored } : {}),
       ...(checked.pricesRejected ? { pricesRejected: checked.pricesRejected } : {}),
+      ...(partialRead ? { partialRead } : {}),
     };
   } catch (err) {
     return {

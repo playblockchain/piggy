@@ -60,10 +60,16 @@ export function computeStats(req: AnalyzeRequest, source = "balances supplied by
   // When nothing is priced, every share is unknown. We do not fall back to
   // token counts — a share of "number of tokens" is not a share of money.
   const unpriced = total === null;
-  const share = (p: (b: TokenBalance) => boolean): Valued<number | null> =>
-    unpriced
-      ? val(null, "unknown", "no USD prices supplied by caller")
-      : val(shareOf(balances, p), "observed", source);
+  const share = (p: (b: TokenBalance) => boolean): Valued<number | null> => {
+    if (unpriced) return val(null, "unknown", "no USD prices supplied by caller");
+    const value = shareOf(balances, p);
+    // An empty wallet has a known total of zero and nothing to divide. Saying
+    // "observed: null" claims Piggy looked and saw a number; it looked and
+    // there was no share to take. Basis has to mean what it says.
+    return value === null
+      ? val(null, "unknown", "nothing priced in this wallet to take a share of")
+      : val(value, "observed", source);
+  };
 
   const largest = balances
     .filter((b) => typeof b.usdValue === "number")
