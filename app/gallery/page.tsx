@@ -49,6 +49,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "empty",
+      scenario: "empty_wallet"
     },
   },
   {
@@ -65,6 +66,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "dust",
+      scenario: "unknown"
     },
   },
   {
@@ -84,6 +86,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "unknown"
     },
   },
   {
@@ -100,6 +103,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "healthy_portfolio"
     },
   },
   {
@@ -119,6 +123,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "staking_yield"
     },
   },
   {
@@ -138,6 +143,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "dca_saving"
     },
   },
   {
@@ -153,6 +159,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "unknown"
     },
   },
   {
@@ -169,6 +176,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "buying_memecoins"
     },
   },
   {
@@ -185,6 +193,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "raiding_savings"
     },
   },
   {
@@ -204,6 +213,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "perps_leverage"
     },
   },
   {
@@ -223,6 +233,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "whale",
+      scenario: "healthy_portfolio"
     },
   },
   {
@@ -239,6 +250,7 @@ const ENTRIES: Entry[] = [
       cohort: noCohort,
       asOf,
       band: "shrimp",
+      scenario: "unknown"
     },
   },
 ];

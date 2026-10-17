@@ -93,6 +93,7 @@ const handler = async (request: NextRequest) => {
     cohort: { status: cohort.status, label: cohort.label, note: cohort.note },
     asOf,
     band: band.band,
+    scenario: scenario.scenario,
   });
 
   const response: AnalyzeResponse = {

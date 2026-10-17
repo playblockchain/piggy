@@ -49,7 +49,7 @@ function Dots() {
 }
 
 export function CardView({ card }: { card: CardPayload }) {
-  const { persona, mood, stats, cohort, asOf, band } = card;
+  const { persona, mood, stats, cohort, asOf, band, scenario } = card;
   const dated = new Date(asOf);
   const datedLabel = Number.isNaN(dated.getTime())
     ? "date unknown"
@@ -64,7 +64,7 @@ export function CardView({ card }: { card: CardPayload }) {
       </div>
 
       <header className={styles.hero}>
-        <Piggy mood={mood.mood} size={132} />
+        <Piggy mood={mood.mood} scenario={scenario} size={132} />
         <p className={styles.eyebrow}>Money personality</p>
         <h1 className={styles.persona}>{persona.name}</h1>
         <p className={styles.because}>{persona.because}</p>

@@ -47,7 +47,7 @@ export default function Home() {
         {/* The one pun on this screen lives here, in a title bar. */}
         <Window title="hello.exe" tone="green">
           <div className={styles.hero}>
-            <Piggy mood="proud" size={128} />
+            <Piggy mood="proud" scenario="healthy_portfolio" size={128} />
             <div className={styles.heroText}>
               <h1 className={styles.title}>Lil Piggy</h1>
               <p className={styles.tagline}>Little pig, big feelings</p>

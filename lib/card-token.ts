@@ -18,6 +18,8 @@ export interface CardPayload {
   asOf: string;
   /** Optional so links made before bands existed still render. */
   band?: string;
+  /** Drives Piggy's props: what you actually did, as opposed to how he feels. */
+  scenario?: AnalyzeResponse["scenario"]["scenario"];
 }
 
 export function encodeCard(payload: CardPayload): string {
