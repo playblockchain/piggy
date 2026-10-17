@@ -185,6 +185,16 @@ const KNOWN_CONTRACTS: Record<string, { venue: string; kind: "perps" | "predicti
   "0x8a311d7048c35985aa31c131b9a13e03a5f7422d": { venue: "Veranta", kind: "perps" },
 };
 const MIN_SPAN_DAYS = 21;
+/** Below this, an inbound stablecoin transfer is crumbs, not a top-up. */
+const MIN_DEPOSIT_USD = 1;
+
+/** Sub-daily cadence rounded to "every 0 days", which reads like a bug. */
+function describeGap(days: number): string {
+  if (days >= 1.5) return `about every ${days.toFixed(0)} days`;
+  if (days >= 0.75) return "about once a day";
+  const perDay = 1 / days;
+  return `about ${perDay.toFixed(0)} times a day`;
+}
 
 const median = (xs: number[]): number | null => {
   if (!xs.length) return null;
@@ -215,7 +225,7 @@ export function deriveEvmHabits(address: string, transfers: Transfer[], sinceDay
   const stamps = recent.map((t) => Date.parse(t.at)).sort((a, b) => a - b);
   const windowDays = stamps.length >= 2 ? (stamps[stamps.length - 1] - stamps[0]) / 86400000 : null;
 
-  const deposits = recent.filter(
+  const inbound = recent.filter(
     (t) =>
       t.direction === "in" &&
       t.to === me &&
@@ -224,6 +234,14 @@ export function deriveEvmHabits(address: string, transfers: Transfer[], sinceDay
       STABLE_ASSETS.has(t.asset.toUpperCase()) &&
       (t.value ?? 0) > 0,
   );
+  // Dust is not funding. flexcopy.eth read as "110 deposits, regular" with a
+  // median of $0.02 — Piggy congratulating somebody for topping themselves up
+  // two cents at a time. Those are airdrop crumbs and change from contract
+  // calls, not someone putting money in. The count that was dropped is
+  // reported, because a reader comparing against a block explorer deserves to
+  // know why the numbers differ.
+  const deposits = inbound.filter((t) => (t.value ?? 0) >= MIN_DEPOSIT_USD);
+  const dustIgnored = inbound.length - deposits.length;
   const depositTimes = deposits.map((d) => Date.parse(d.at)).sort((a, b) => a - b);
   const gapsDays = depositTimes.slice(1).map((t, i) => (t - depositTimes[i]) / 86400000);
   const spread = stddev(gapsDays);
@@ -232,9 +250,21 @@ export function deriveEvmHabits(address: string, transfers: Transfer[], sinceDay
       ? (depositTimes[depositTimes.length - 1] - depositTimes[0]) / 86400000
       : 0;
 
+  const meanGap = gapsDays.length > 0 ? gapsDays.reduce((a, b) => a + b, 0) / gapsDays.length : null;
+
   let regularity = "unknown";
-  if (deposits.length >= 3 && spread !== null && spanDays >= MIN_SPAN_DAYS) {
-    regularity = spread <= 10 ? "regular" : "irregular";
+  // Variation only means something next to the gap it varies against. Ten days
+  // of spread is tight for monthly top-ups and meaningless for deposits that
+  // land hourly — which is how 265 same-hour collateral cycles were being
+  // called "regular". Regularity is now spread relative to the typical gap.
+  if (
+    deposits.length >= 3 &&
+    spread !== null &&
+    meanGap !== null &&
+    meanGap > 0 &&
+    spanDays >= MIN_SPAN_DAYS
+  ) {
+    regularity = spread <= meanGap ? "regular" : "irregular";
   }
 
   const counts = new Map<string, { chain: EvmChain; n: number }>();
@@ -282,11 +312,13 @@ export function deriveEvmHabits(address: string, transfers: Transfer[], sinceDay
       measured:
         deposits.length === 0
           ? `No inbound stablecoin transfers in the last ${sinceDays} days.`
-          : `${deposits.length} inbound stablecoin transfers over about ${spanDays.toFixed(0)} days${
+          : `${deposits.length} inbound stablecoin transfers over $1 in about ${spanDays.toFixed(0)} days${
+              dustIgnored > 0 ? `, ignoring ${dustIgnored} under $1` : ""
+            }${
               spanDays < MIN_SPAN_DAYS
                 ? " — too short a stretch to call a rhythm"
-                : spread !== null
-                  ? `, gaps varying by about ${spread.toFixed(0)} days`
+                : spread !== null && meanGap !== null
+                  ? `, arriving ${describeGap(meanGap)} and varying by about ${spread < 1 ? `${(spread * 24).toFixed(0)} hours` : `${spread.toFixed(0)} days`}`
                   : ""
             }.`,
     },
