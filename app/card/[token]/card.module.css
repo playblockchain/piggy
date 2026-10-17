@@ -3,86 +3,90 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 32px 16px 48px;
-  gap: 24px;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-7) var(--space-4);
 }
 
 .card {
   width: 100%;
   max-width: 520px;
-  background: var(--surface);
-  border: var(--border-width) solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
 }
 
 .hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 32px 24px 24px;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-5) var(--space-4);
   text-align: center;
 }
 
 .eyebrow {
-  font-size: var(--step-label);
-  letter-spacing: 0.08em;
+  font: 400 var(--fs-label) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 .persona {
-  font-size: var(--step-result);
-  line-height: 1.1;
-  font-weight: 700;
-  color: var(--text-strong);
+  font: 400 var(--fs-h1) / 1.1 var(--font-display-stack);
+  color: var(--text);
   text-wrap: balance;
 }
 
 .because {
-  font-size: var(--step-helper);
-  color: var(--text-muted);
-  max-width: 40ch;
+  font: 600 var(--fs-caption) / 1.4 var(--font-body-stack);
+  color: var(--text);
+  max-width: 38ch;
   text-wrap: pretty;
 }
 
-.moodRow {
+/* Mood chip: a pill in the bar colour, so the mood is legible as colour and
+   as a word — colour never carries the meaning alone. */
+.moodChip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  font-size: var(--step-helper);
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: 7px 14px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--r-pill);
+  font: 400 var(--fs-label) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text);
 }
 
-.moodDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex: none;
+.moodChip--green { background: var(--bar-green); }
+.moodChip--pink { background: var(--bar-pink); }
+.moodChip--blue { background: var(--bar-blue); }
+.moodChip--peach { background: var(--bar-peach); }
+
+.moodWhy {
+  font: 600 var(--fs-caption) / 1.4 var(--font-body-stack);
+  color: var(--text);
+  max-width: 38ch;
+  text-wrap: pretty;
 }
 
 .section {
-  padding: 20px 24px;
-  border-top: var(--border-width) solid var(--divider);
+  padding: var(--space-4) var(--space-5);
+  border-top: var(--stroke-hair) solid var(--panel-grid);
 }
 
 .sectionTitle {
-  font-size: var(--step-label);
-  letter-spacing: 0.08em;
+  font: 400 var(--fs-label) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+  color: var(--text);
+  margin-bottom: var(--space-3);
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .stat {
@@ -90,72 +94,100 @@
 }
 
 .statValue {
-  font-size: var(--step-section);
-  font-weight: 650;
-  color: var(--text-strong);
+  font: 400 30px / 1 var(--font-display-stack);
+  color: var(--text);
 }
 
 .statValueUnknown {
-  font-size: var(--step-helper);
-  font-weight: 500;
-  color: var(--text-muted);
+  font: 700 var(--fs-caption) / 1.3 var(--font-body-stack);
+  color: var(--text);
+  padding-top: 6px;
+  display: block;
 }
 
 .statLabel {
-  font-size: var(--step-label);
-  color: var(--text-muted);
+  margin-top: 6px;
+  font: 400 var(--fs-caption) / 1.2 var(--font-pixel-stack);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
   overflow-wrap: break-word;
 }
 
 .note {
-  font-size: var(--step-helper);
-  color: var(--text-muted);
+  font: 400 var(--fs-caption) / 1.5 var(--font-body-stack);
+  color: var(--text);
   text-wrap: pretty;
 }
 
+/* Status pill: word plus fill, never colour alone. */
 .badge {
   display: inline-block;
-  font-size: var(--step-label);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  border: var(--border-width) solid var(--border);
-  color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
+  padding: 5px 12px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--r-pill);
+  background: var(--panel);
+  font: 400 var(--fs-caption) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
+.badge--ok { background: var(--bar-green); }
+
 .footer {
-  padding: 16px 24px 24px;
-  border-top: var(--border-width) solid var(--divider);
-  font-size: var(--step-label);
-  color: var(--text-muted);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  border-top: var(--stroke-hair) solid var(--panel-grid);
+  font: 400 12px / 1.5 var(--font-body-stack);
+  color: var(--text);
   text-wrap: pretty;
 }
 
 .tagline {
-  font-size: var(--step-helper);
-  color: var(--text-muted);
+  font: 400 var(--fs-label) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
-.errorCard {
+/* Error state: a framed window, the system's modal recipe. */
+.errorFrame {
   width: 100%;
-  max-width: 520px;
-  background: var(--surface);
-  border: var(--border-width) solid var(--border);
-  border-radius: var(--radius);
-  padding: 32px 24px;
+  max-width: 460px;
+  background: var(--bar-pink);
+  border: var(--stroke-window) solid var(--ink);
+  border-radius: var(--r-window);
+  box-shadow: var(--sh-window);
+  padding-top: var(--space-5);
+}
+
+.errorInner {
+  margin: 0 var(--frame-inset) var(--frame-inset);
+  background: var(--panel);
+  border: var(--stroke) solid var(--ink);
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
   text-align: center;
 }
 
 .errorTitle {
-  font-size: var(--step-page);
-  font-weight: 650;
-  color: var(--text-strong);
-  margin-bottom: 8px;
+  font: 400 20px / 1.2 var(--font-pixel-stack);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
-@media (max-width: 420px) {
+@media (max-width: 440px) {
   .stats {
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+    gap: var(--space-4);
+  }
+
+  .persona {
+    font-size: 26px;
   }
 }

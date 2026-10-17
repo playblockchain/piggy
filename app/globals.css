@@ -1,87 +1,104 @@
-/* Semantic tokens. Components reference these, never raw values. */
+/**
+ * Pastel desktop sticker system.
+ * Tokens from design.md — every hex sampled from the reference sheet.
+ *
+ * The rules that matter most here: one outline colour, all reading text in
+ * deep plum (the light ink fails AA on pastels), colour lives in title bars
+ * rather than page fills, and the only gradient is the page field.
+ */
 :root {
   color-scheme: light;
 
-  --page: #faf7f5;
-  --surface: #ffffff;
-  --surface-2: #f4efec;
+  /* field */
+  --field-mint: #c2efe8;
+  --field-pink: #fae1ea;
+  --field-butter: #fff4d4;
+  --field: linear-gradient(
+    180deg,
+    #c2efe8 0%,
+    #c2efe8 17%,
+    #fae1ea 32%,
+    #fae1ea 56%,
+    #fff4d4 70%,
+    #fff4d4 100%
+  );
 
-  --text-strong: #1b1416;
-  --text: #3b3034;
-  --text-muted: #7a6b70;
-  --text-disabled: #a9999e;
+  /* paper */
+  --panel: #ffffff;
+  --panel-grid: #e2d6dc;
+  --content-pink: #ffe7f6;
+  --tool-pink: #fdeeef;
 
-  --border: #e4dad6;
-  --divider: #efe7e3;
+  /* ink + text */
+  --ink: #a76e80; /* outlines, pixel labels >= 24px only */
+  --text: #6c4550; /* all reading text, all text on pastels */
 
-  --accent: #c2185b;
-  --accent-ink: #ffffff;
-  --accent-soft: #fce4ec;
+  /* title bars = semantics */
+  --bar-green: #dfffb6;
+  --bar-pink: #f9c3dd;
+  --bar-blue: #c1daf9;
+  --bar-peach: #ffd59e;
+  --ok: #c4d8f7;
 
-  --focus: #1b1416;
+  /* dots */
+  --dot-1: #ffe5a0;
+  --dot-2: #bbec82;
+  --dot-3: #feb4c9;
+  --dot-alert: #d4ffae;
 
-  --proud: #2e7d4f;
-  --okay: #8a6d1f;
-  --sad: #b2552b;
-  --unhinged: #a3272c;
+  /* shadow: hard, pink, always down-left */
+  --shadow: #fdc7d6;
+  --sh-window: -6px 5px 0 var(--shadow);
+  --sh-control: -4px 4px 0 var(--shadow);
+  --sh-pressed: -1px 1px 0 var(--shadow);
 
-  /* Lil Piggy character palette, from the brand sheet. */
-  --piggy-blob: #fbe3e6;
-  --piggy-body: #fffdfc;
-  --piggy-outline: #4a3a3d;
-  --piggy-blush: #f7c6cd;
-  --piggy-gold: #e8b84b;
+  /* chart / tag series */
+  --s1: #feb6cc;
+  --s2: #fcd69f;
+  --s3: #fded9c;
+  --s4: #caffa0;
+  --s5: #c1d9fb;
+  --s6: #c9b2fa;
 
-  --radius: 12px;
-  --radius-sm: 8px;
-  --border-width: 1px;
-  --shadow: 0 1px 2px rgba(27, 20, 22, 0.06);
+  /* shape */
+  --stroke-window: 4px;
+  --stroke: 3px;
+  --stroke-hair: 2px;
+  --r-window: 12px;
+  --r-control: 6px;
+  --r-panel: 4px;
+  --r-pill: 999px;
 
-  --step-label: 0.75rem;
-  --step-helper: 0.875rem;
-  --step-body: 1rem;
-  --step-section: 1.25rem;
-  --step-page: 1.75rem;
-  --step-result: 2.5rem;
-}
+  /* layout */
+  --grid: 48px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+  --bar-h: 44px;
+  --dot: 18px;
+  --control-h: 40px;
+  --frame-inset: 12px;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+  /* type */
+  --font-pixel-stack: var(--font-pixel), "Courier New", monospace;
+  --font-display-stack: var(--font-display), var(--font-pixel), monospace;
+  --font-body-stack: var(--font-body), system-ui, sans-serif;
+  --fs-display: 48px;
+  --fs-h1: 32px;
+  --fs-h2: 22px;
+  --fs-title: 18px;
+  --fs-body: 16px;
+  --fs-btn: 15px;
+  --fs-label: 14px;
+  --fs-caption: 13px;
 
-    --page: #141011;
-    --surface: #1d1719;
-    --surface-2: #262022;
-
-    --text-strong: #f6f1f2;
-    --text: #ded5d8;
-    --text-muted: #a19397;
-    --text-disabled: #6f6367;
-
-    --border: #352d30;
-    --divider: #2b2426;
-
-    --accent: #f06292;
-    --accent-ink: #1b1416;
-    --accent-soft: #3a2029;
-
-    --focus: #f6f1f2;
-
-    --proud: #6cc08b;
-    --okay: #d6b65c;
-    --sad: #e08a5f;
-    --unhinged: #e8686d;
-
-    /* The character keeps its light colouring in dark mode — it is artwork,
-       not UI chrome, and inverting it makes the pig look ill. */
-    --piggy-blob: #3a2a2e;
-    --piggy-body: #f6eceb;
-    --piggy-outline: #3b2d30;
-    --piggy-blush: #e8a7b0;
-    --piggy-gold: #e8b84b;
-
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  }
+  --dur-press: 60ms;
+  --dur-pop: 160ms;
 }
 
 * {
@@ -98,36 +115,87 @@ body {
 
 body {
   min-height: 100vh;
-  background: var(--page);
+  background: var(--field);
+  background-attachment: fixed;
   color: var(--text);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-  font-size: var(--step-body);
-  line-height: 1.5;
+  font: 400 var(--fs-body) / 1.55 var(--font-body-stack);
   -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--accent);
+  color: var(--text);
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-a:hover {
   text-decoration-thickness: 2px;
 }
 
 :focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: var(--stroke) solid var(--text);
+  outline-offset: 3px;
+}
+
+/* ---- window: the universal card ---- */
+
+.window {
+  background: var(--panel);
+  border: var(--stroke-window) solid var(--ink);
+  border-radius: var(--r-window);
+  box-shadow: var(--sh-window);
+  overflow: hidden;
+}
+
+.windowBar {
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 14px 0 18px;
+  background: var(--bar-green);
+  border-bottom: var(--stroke) solid var(--ink);
+  font: 400 var(--fs-title) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.windowBar--green { background: var(--bar-green); }
+.windowBar--pink { background: var(--bar-pink); }
+.windowBar--blue { background: var(--bar-blue); }
+.windowBar--peach { background: var(--bar-peach); }
+
+.dots {
+  display: flex;
+  gap: 9px;
+  flex: none;
+}
+
+.dots span {
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 50%;
+  border: var(--stroke) solid var(--ink);
+  display: block;
+}
+
+.dots span:nth-child(1) { background: var(--dot-1); }
+.dots span:nth-child(2) { background: var(--dot-2); }
+.dots span:nth-child(3) { background: var(--dot-3); }
+
+/* ---- pixel label ---- */
+
+.pixelLabel {
+  font: 400 var(--fs-label) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    animation: none !important;
+    transition: opacity 120ms !important;
   }
 }

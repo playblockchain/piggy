@@ -1,26 +1,38 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Nunito, Pixelify_Sans, Tiny5 } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/** Pixel caps: labels, window titles, tags. Caps only, never paragraphs. */
+const tiny5 = Tiny5({
+  variable: "--font-pixel",
+  weight: "400",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+/** Pixel display: short mixed-case headings and big numbers. */
+const pixelify = Pixelify_Sans({
+  variable: "--font-display",
   subsets: ["latin"],
+  display: "swap",
+});
+
+/** Body and UI: everything you actually read. */
+const nunito = Nunito({
+  variable: "--font-body",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "Lil Piggy",
   description:
-    "We make wealth management easy. Lil Piggy reads a wallet snapshot and hands back a money personality, a mood and a plan your agent can carry out.",
+    "Little pig, big feelings. Lil Piggy reads a wallet snapshot and hands back a money personality, a mood and a plan your agent can carry out.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${tiny5.variable} ${pixelify.variable} ${nunito.variable}`}>
       <body>{children}</body>
     </html>
   );

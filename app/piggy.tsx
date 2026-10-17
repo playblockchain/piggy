@@ -19,7 +19,7 @@ const LABEL: Record<Mood, string> = {
 };
 
 function Face({ mood }: { mood: Mood }) {
-  const ink = "var(--piggy-outline)";
+  const ink = "var(--ink)";
 
   if (mood === "happy" || mood === "excited") {
     // Closed, upturned eyes — the "^ ^" of the reference sheet.
@@ -56,14 +56,14 @@ function Face({ mood }: { mood: Mood }) {
 }
 
 function Prop({ mood }: { mood: Mood }) {
-  const ink = "var(--piggy-outline)";
+  const ink = "var(--ink)";
 
   switch (mood) {
     case "proud":
       return (
         <path
           d="M62 48 L70 60 L80 44 L90 60 L98 48 L95 64 L65 64 Z"
-          fill="var(--piggy-gold)"
+          fill="var(--dot-1)"
           stroke={ink}
           strokeWidth="2.4"
           strokeLinejoin="round"
@@ -73,7 +73,7 @@ function Prop({ mood }: { mood: Mood }) {
       return (
         <path
           d="M80 40 c-4 -6 -13 -2 -10 5 c2 5 10 9 10 9 s8 -4 10 -9 c3 -7 -6 -11 -10 -5 z"
-          fill="var(--piggy-blush)"
+          fill="var(--s1)"
           stroke={ink}
           strokeWidth="2.2"
           strokeLinejoin="round"
@@ -95,7 +95,7 @@ function Prop({ mood }: { mood: Mood }) {
           fontSize="26"
           fontWeight="600"
           fill={ink}
-          fontFamily="var(--font-geist-sans), system-ui, sans-serif"
+          fontFamily="var(--font-pixel-stack)"
         >
           ?
         </text>
@@ -112,7 +112,7 @@ function Prop({ mood }: { mood: Mood }) {
       return (
         <path
           d="M56 52 L80 34 L104 52 L98 60 L62 60 Z"
-          fill="var(--surface-2)"
+          fill="var(--panel-grid)"
           stroke={ink}
           strokeWidth="2.4"
           strokeLinejoin="round"
@@ -124,7 +124,7 @@ function Prop({ mood }: { mood: Mood }) {
 }
 
 export function Piggy({ mood, size = 160 }: { mood: Mood; size?: number }) {
-  const ink = "var(--piggy-outline)";
+  const ink = "var(--ink)";
   // Piggy shrinks as the habits get worse — the brand sheet's whole premise.
   const scale =
     mood === "proud" || mood === "excited"
@@ -149,34 +149,34 @@ export function Piggy({ mood, size = 160 }: { mood: Mood; size?: number }) {
       {/* soft blob */}
       <path
         d="M80 16 c34 0 60 20 62 48 c2 28 -16 56 -46 62 c-30 6 -58 -4 -70 -26 c-12 -22 -8 -56 14 -70 c12 -8 24 -14 40 -14 z"
-        fill="var(--piggy-blob)"
+        fill="var(--content-pink)"
       />
 
       <g transform={`translate(80 92) scale(${scale}) translate(-80 -92)`}>
         <Prop mood={mood} />
 
         {/* ears */}
-        <path d="M50 70 L57 50 L72 62 Z" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
-        <path d="M110 70 L103 50 L88 62 Z" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+        <path d="M50 70 L57 50 L72 62 Z" fill="var(--panel)" stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+        <path d="M110 70 L103 50 L88 62 Z" fill="var(--panel)" stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
 
         {/* body */}
-        <ellipse cx="80" cy="94" rx="44" ry="38" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.8" />
+        <ellipse cx="80" cy="94" rx="44" ry="38" fill="var(--panel)" stroke={ink} strokeWidth="2.8" />
 
         {/* blush */}
-        <ellipse cx="50" cy="99" rx="7.5" ry="5" fill="var(--piggy-blush)" />
-        <ellipse cx="110" cy="99" rx="7.5" ry="5" fill="var(--piggy-blush)" />
+        <ellipse cx="50" cy="99" rx="7.5" ry="5" fill="var(--s1)" />
+        <ellipse cx="110" cy="99" rx="7.5" ry="5" fill="var(--s1)" />
 
         <Face mood={mood} />
 
         {mood === "sad" && (
           <>
-            <path d="M68 95 q2 9 -1 15" stroke="var(--piggy-blush)" strokeWidth="3" strokeLinecap="round" fill="none" />
-            <path d="M92 95 q2 9 -1 15" stroke="var(--piggy-blush)" strokeWidth="3" strokeLinecap="round" fill="none" />
+            <path d="M68 95 q2 9 -1 15" stroke="var(--s1)" strokeWidth="3" strokeLinecap="round" fill="none" />
+            <path d="M92 95 q2 9 -1 15" stroke="var(--s1)" strokeWidth="3" strokeLinecap="round" fill="none" />
           </>
         )}
 
         {/* snout */}
-        <ellipse cx="80" cy="106" rx="16" ry="11" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.6" />
+        <ellipse cx="80" cy="106" rx="16" ry="11" fill="var(--panel)" stroke={ink} strokeWidth="2.6" />
         <ellipse cx="75" cy="106" rx="2.4" ry="3.6" fill={ink} />
         <ellipse cx="85" cy="106" rx="2.4" ry="3.6" fill={ink} />
 

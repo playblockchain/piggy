@@ -18,6 +18,23 @@ Solana assets). Plugins that only browse — Aave, Hyperliquid — are useful as
 never offered as a way to carry something out. All three execution plugins are Solana, which
 is why the cohort queries are Solana-first too.
 
+## Design
+
+Built on the pastel desktop sticker system (`brand.md` / `design.md`): white grid paper over a
+mint → pink → butter field, every container a plum-outlined window with a pastel title bar, three
+dots and a hard pink shadow falling down-left. Tiny5 for pixel caps, Pixelify Sans for headings
+and numbers, Nunito for everything you read.
+
+Two rules from that system do real work here:
+
+- **Title-bar colour is the semantic system.** Piggy's mood picks the bar: green when things are
+  fine, peach when suspicious, pink when sad or unhinged, blue when he cannot read the wallet at
+  all. The mood is always also written as a word — colour never carries it alone.
+- **All reading text is deep plum `#6C4550`.** The lighter ink `#A76E80` fails AA on pastels, so
+  it is only ever an outline.
+
+One pun per screen, in a title bar. Everything functional stays plain.
+
 ## Endpoints
 
 | Route | What it does | Paid |
