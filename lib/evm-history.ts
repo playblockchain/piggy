@@ -1,0 +1,223 @@
+/**
+ * EVM transaction history, via Alchemy.
+ *
+ * This is the gap nothing free could fill. Every public Base RPC caps
+ * eth_getLogs at 50 or 10,000 blocks, Basescan charges for Base, and
+ * Blockscout blocks scripted access — so months of EVM history was simply
+ * unreadable. Alchemy's getAssetTransfers returns it in one call per chain,
+ * and the free tier is enough for this.
+ *
+ * Without ALCHEMY_API_KEY, every reading here is reported unavailable with the
+ * reason. Nothing is inferred from holdings to fill the gap.
+ */
+
+export type EvmChain = "base" | "ethereum" | "polygon";
+
+const HOSTS: Record<EvmChain, string> = {
+  base: "base-mainnet.g.alchemy.com",
+  ethereum: "eth-mainnet.g.alchemy.com",
+  polygon: "polygon-mainnet.g.alchemy.com",
+};
+
+export interface Transfer {
+  chain: EvmChain;
+  /** ISO timestamp. */
+  at: string;
+  from: string;
+  to: string;
+  asset: string | null;
+  value: number | null;
+  direction: "in" | "out";
+}
+
+export interface EvmHistory {
+  status: "ok" | "no_key" | "failed";
+  transfers: Transfer[];
+  message?: string;
+}
+
+async function transfersFor(
+  chain: EvmChain,
+  address: string,
+  key: string,
+  direction: "in" | "out",
+): Promise<Transfer[]> {
+  const body = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "alchemy_getAssetTransfers",
+    params: [
+      {
+        fromBlock: "0x0",
+        toBlock: "latest",
+        [direction === "in" ? "toAddress" : "fromAddress"]: address,
+        category: ["external", "erc20"],
+        withMetadata: true,
+        excludeZeroValue: true,
+        maxCount: "0x3e8",
+        order: "desc",
+      },
+    ],
+  };
+
+  const res = await fetch(`https://${HOSTS[chain]}/v2/${key}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${chain} returned ${res.status}`);
+
+  const json = (await res.json()) as {
+    result?: {
+      transfers?: Array<{
+        from?: string;
+        to?: string;
+        asset?: string | null;
+        value?: number | null;
+        metadata?: { blockTimestamp?: string };
+      }>;
+    };
+    error?: { message?: string };
+  };
+  if (json.error) throw new Error(json.error.message ?? `${chain} rejected the query`);
+
+  return (json.result?.transfers ?? []).map((t) => ({
+    chain,
+    at: t.metadata?.blockTimestamp ?? "",
+    from: (t.from ?? "").toLowerCase(),
+    to: (t.to ?? "").toLowerCase(),
+    asset: t.asset ?? null,
+    value: typeof t.value === "number" ? t.value : null,
+    direction,
+  }));
+}
+
+export async function fetchEvmHistory(
+  address: string,
+  chains: EvmChain[] = ["base", "ethereum", "polygon"],
+): Promise<EvmHistory> {
+  const key = process.env.ALCHEMY_API_KEY;
+  if (!key) {
+    return {
+      status: "no_key",
+      transfers: [],
+      message:
+        "No ALCHEMY_API_KEY is configured, so I cannot read EVM transaction history. Holdings and live venue positions still work.",
+    };
+  }
+
+  try {
+    const batches = await Promise.all(
+      chains.flatMap((chain) => [
+        transfersFor(chain, address, key, "in"),
+        transfersFor(chain, address, key, "out"),
+      ]),
+    );
+    const transfers = batches.flat().filter((t) => t.at);
+    transfers.sort((a, b) => a.at.localeCompare(b.at));
+    return { status: "ok", transfers };
+  } catch (err) {
+    return {
+      status: "failed",
+      transfers: [],
+      message: `Could not read EVM history: ${(err as Error).message}`,
+    };
+  }
+}
+
+export interface EvmHabits {
+  /** Inbound stablecoin arrivals: the funding signature, same as on Solana. */
+  funding: { depositCount: number; medianUsd: number | null; regularity: string; measured: string };
+  /** Contracts this wallet keeps going back to — where its behaviour lives. */
+  topCounterparties: Array<{ address: string; chain: EvmChain; interactions: number }>;
+  windowDays: number | null;
+}
+
+const STABLE_ASSETS = new Set(["USDC", "USDT", "DAI", "USDC.E", "PYUSD"]);
+const MIN_SPAN_DAYS = 21;
+
+const median = (xs: number[]): number | null => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+function stddev(xs: number[]): number | null {
+  if (xs.length < 2) return null;
+  const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+  return Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length);
+}
+
+/**
+ * Pure, so it can be tested without a key. Same shape of reasoning as the
+ * Solana side: cadence needs real time to span, and what is measured is
+ * reported rather than what it is assumed to mean.
+ */
+export function deriveEvmHabits(address: string, transfers: Transfer[], sinceDays = 180): EvmHabits {
+  const me = address.toLowerCase();
+  const cutoff = Date.now() - sinceDays * 86400000;
+  const recent = transfers.filter((t) => {
+    const ms = Date.parse(t.at);
+    return Number.isFinite(ms) && ms >= cutoff;
+  });
+
+  const stamps = recent.map((t) => Date.parse(t.at)).sort((a, b) => a - b);
+  const windowDays = stamps.length >= 2 ? (stamps[stamps.length - 1] - stamps[0]) / 86400000 : null;
+
+  const deposits = recent.filter(
+    (t) =>
+      t.direction === "in" &&
+      t.to === me &&
+      t.from !== me &&
+      t.asset &&
+      STABLE_ASSETS.has(t.asset.toUpperCase()) &&
+      (t.value ?? 0) > 0,
+  );
+  const depositTimes = deposits.map((d) => Date.parse(d.at)).sort((a, b) => a - b);
+  const gapsDays = depositTimes.slice(1).map((t, i) => (t - depositTimes[i]) / 86400000);
+  const spread = stddev(gapsDays);
+  const spanDays =
+    depositTimes.length >= 2
+      ? (depositTimes[depositTimes.length - 1] - depositTimes[0]) / 86400000
+      : 0;
+
+  let regularity = "unknown";
+  if (deposits.length >= 3 && spread !== null && spanDays >= MIN_SPAN_DAYS) {
+    regularity = spread <= 10 ? "regular" : "irregular";
+  }
+
+  const counts = new Map<string, { chain: EvmChain; n: number }>();
+  for (const t of recent) {
+    const other = t.direction === "out" ? t.to : t.from;
+    if (!other || other === me) continue;
+    const key = `${t.chain}:${other}`;
+    const prev = counts.get(key);
+    counts.set(key, { chain: t.chain, n: (prev?.n ?? 0) + 1 });
+  }
+
+  const topCounterparties = [...counts.entries()]
+    .map(([key, v]) => ({ address: key.split(":")[1], chain: v.chain, interactions: v.n }))
+    .sort((a, b) => b.interactions - a.interactions)
+    .slice(0, 8);
+
+  return {
+    funding: {
+      depositCount: deposits.length,
+      medianUsd: median(deposits.map((d) => d.value ?? 0)),
+      regularity,
+      measured:
+        deposits.length === 0
+          ? `No inbound stablecoin transfers in the last ${sinceDays} days.`
+          : `${deposits.length} inbound stablecoin transfers over about ${spanDays.toFixed(0)} days${
+              spanDays < MIN_SPAN_DAYS
+                ? " — too short a stretch to call a rhythm"
+                : spread !== null
+                  ? `, gaps varying by about ${spread.toFixed(0)} days`
+                  : ""
+            }.`,
+    },
+    topCounterparties,
+    windowDays,
+  };
+}

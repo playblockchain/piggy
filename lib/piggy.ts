@@ -435,7 +435,7 @@ export function blindSpots(
         : "No perps data was supplied, so leverage is unknown.",
     );
   }
-  if (!req.positions?.predictionMarkets?.length) {
+  if (!req.positions?.predictionMarkets?.length && !venuesChecked?.includes("Polymarket")) {
     out.push("No prediction-market data was supplied, so those bets are unknown.");
   }
   if (!req.selfReported?.incomeRegularity) {

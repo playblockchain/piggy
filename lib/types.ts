@@ -169,6 +169,13 @@ export interface AnalyzeResponse {
   blindSpots: string[];
   /** Per-address result when addresses were supplied, so failures are visible. */
   resolved?: Array<{ address: string; chain: string; ok: boolean; tokens: number; message?: string }>;
+  /** EVM transaction history, when a key makes it readable. */
+  evmHistory?: {
+    status: string;
+    message?: string;
+    funding?: { depositCount: number; medianUsd: number | null; regularity: string; measured: string };
+    topCounterparties?: Array<{ address: string; chain: string; interactions: number }>;
+  };
   /** Which perps venues were asked, and what they said. */
   venuesChecked?: Array<{ venue: string; chain: string; ok: boolean; found: number; message?: string }>;
   cardUrl: string;

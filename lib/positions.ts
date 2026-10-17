@@ -23,8 +23,17 @@ export interface PerpPosition {
   leverage?: number;
 }
 
+export interface PredictionPosition {
+  venue: string;
+  market: string;
+  stakeUsd?: number;
+}
+
 export interface PositionsFetch {
   perps: PerpPosition[];
+  predictionMarkets: PredictionPosition[];
+  /** Venue activity over time, for habits rather than a snapshot. */
+  activity: Array<{ venue: string; events: number; spanDays: number | null }>;
   /** What was checked and what came back, so silence is distinguishable from absence. */
   checked: Array<{ venue: string; chain: string; ok: boolean; found: number; message?: string }>;
 }
@@ -132,31 +141,94 @@ export async function fetchVeranta(address: string): Promise<{
   return { perps, ok: true };
 }
 
+/**
+ * Polymarket's data API is public. Positions say what is open now; activity
+ * says whether this is a habit or a one-off, which is the more damning fact.
+ */
+export async function fetchPolymarket(address: string): Promise<{
+  positions: PredictionPosition[];
+  events: number;
+  spanDays: number | null;
+  ok: boolean;
+  message?: string;
+}> {
+  try {
+    const [posRes, actRes] = await Promise.all([
+      fetch(`https://data-api.polymarket.com/positions?user=${address}`),
+      fetch(`https://data-api.polymarket.com/activity?user=${address}&limit=200`),
+    ]);
+    if (!posRes.ok) {
+      return { positions: [], events: 0, spanDays: null, ok: false, message: `Polymarket returned ${posRes.status}` };
+    }
+
+    const raw = (await posRes.json()) as Array<{ title?: string; size?: number; currentValue?: number }>;
+    const positions: PredictionPosition[] = (Array.isArray(raw) ? raw : []).map((p) => ({
+      venue: "Polymarket",
+      market: p.title ?? "a market",
+      ...(typeof p.currentValue === "number" ? { stakeUsd: p.currentValue } : {}),
+    }));
+
+    let events = 0;
+    let spanDays: number | null = null;
+    if (actRes.ok) {
+      const acts = (await actRes.json()) as Array<{ timestamp?: number }>;
+      if (Array.isArray(acts) && acts.length > 0) {
+        events = acts.length;
+        const stamps = acts.map((a) => a.timestamp ?? 0).filter((t) => t > 0).sort((a, b) => a - b);
+        if (stamps.length >= 2) spanDays = (stamps[stamps.length - 1] - stamps[0]) / 86400;
+      }
+    }
+    return { positions, events, spanDays, ok: true };
+  } catch (err) {
+    return { positions: [], events: 0, spanDays: null, ok: false, message: `Could not reach Polymarket: ${(err as Error).message}` };
+  }
+}
+
+/** Hyperliquid fills: how much trading, over how long. */
+export async function fetchHyperliquidFills(address: string): Promise<{ events: number; spanDays: number | null }> {
+  try {
+    const res = await fetch("https://api.hyperliquid.xyz/info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "userFills", user: address }),
+    });
+    if (!res.ok) return { events: 0, spanDays: null };
+    const fills = (await res.json()) as Array<{ time?: number }>;
+    if (!Array.isArray(fills) || fills.length === 0) return { events: 0, spanDays: null };
+    const stamps = fills.map((f) => f.time ?? 0).filter((t) => t > 0).sort((a, b) => a - b);
+    const spanDays = stamps.length >= 2 ? (stamps[stamps.length - 1] - stamps[0]) / 86400000 : null;
+    return { events: fills.length, spanDays };
+  } catch {
+    return { events: 0, spanDays: null };
+  }
+}
+
 /** Everything Piggy can check for one address, in parallel. */
 export async function fetchPositions(addresses: string[]): Promise<PositionsFetch> {
   const evm = addresses.filter((a) => /^0x[a-fA-F0-9]{40}$/.test(a));
   const perps: PerpPosition[] = [];
+  const predictionMarkets: PredictionPosition[] = [];
+  const activity: PositionsFetch["activity"] = [];
   const checked: PositionsFetch["checked"] = [];
 
   for (const address of evm.slice(0, 3)) {
-    const [hl, vr] = await Promise.all([fetchHyperliquid(address), fetchVeranta(address)]);
+    const [hl, vr, pm, hlFills] = await Promise.all([
+      fetchHyperliquid(address),
+      fetchVeranta(address),
+      fetchPolymarket(address),
+      fetchHyperliquidFills(address),
+    ]);
 
     perps.push(...hl.perps, ...vr.perps);
-    checked.push({
-      venue: "Hyperliquid",
-      chain: "hyperliquid",
-      ok: hl.ok,
-      found: hl.perps.length,
-      ...(hl.message ? { message: hl.message } : {}),
-    });
-    checked.push({
-      venue: "Veranta",
-      chain: "base",
-      ok: vr.ok,
-      found: vr.perps.length,
-      ...(vr.message ? { message: vr.message } : {}),
-    });
+    predictionMarkets.push(...pm.positions);
+
+    if (hlFills.events > 0) activity.push({ venue: "Hyperliquid", events: hlFills.events, spanDays: hlFills.spanDays });
+    if (pm.events > 0) activity.push({ venue: "Polymarket", events: pm.events, spanDays: pm.spanDays });
+
+    checked.push({ venue: "Hyperliquid", chain: "hyperliquid", ok: hl.ok, found: hl.perps.length, ...(hl.message ? { message: hl.message } : {}) });
+    checked.push({ venue: "Veranta", chain: "base", ok: vr.ok, found: vr.perps.length, ...(vr.message ? { message: vr.message } : {}) });
+    checked.push({ venue: "Polymarket", chain: "polygon", ok: pm.ok, found: pm.positions.length, ...(pm.message ? { message: pm.message } : {}) });
   }
 
-  return { perps, checked };
+  return { perps, predictionMarkets, activity, checked };
 }

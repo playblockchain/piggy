@@ -12,6 +12,7 @@ import {
   pickScenario,
 } from "@/lib/piggy";
 import { deriveHabits, fetchHistory } from "@/lib/history";
+import { deriveEvmHabits, fetchEvmHistory } from "@/lib/evm-history";
 import { fetchPositions } from "@/lib/positions";
 import { fetchWallet } from "@/lib/wallet";
 import { analyzeRouteConfig, PAY_TO, resourceServer } from "@/lib/x402";
@@ -92,8 +93,32 @@ const handler = async (request: NextRequest) => {
   if (req.addresses?.length) {
     const found = await fetchPositions(req.addresses);
     positionsChecked = found.checked;
-    if (found.perps.length > 0) {
-      req = { ...req, positions: { ...(req.positions ?? {}), perps: [...(req.positions?.perps ?? []), ...found.perps] } };
+    if (found.perps.length > 0 || found.predictionMarkets.length > 0) {
+      req = {
+        ...req,
+        positions: {
+          ...(req.positions ?? {}),
+          perps: [...(req.positions?.perps ?? []), ...found.perps],
+          predictionMarkets: [...(req.positions?.predictionMarkets ?? []), ...found.predictionMarkets],
+        },
+      };
+    }
+  }
+
+  // EVM history: the six months of behaviour behind the holdings.
+  let evmHistory: AnalyzeResponse["evmHistory"];
+  const firstEvm = (req.addresses ?? []).find((a) => /^0x[a-fA-F0-9]{40}$/.test(a));
+  if (firstEvm) {
+    const hist = await fetchEvmHistory(firstEvm);
+    if (hist.status === "ok") {
+      const habits = deriveEvmHabits(firstEvm, hist.transfers);
+      evmHistory = {
+        status: "ok",
+        funding: habits.funding,
+        topCounterparties: habits.topCounterparties,
+      };
+    } else {
+      evmHistory = { status: hist.status, message: hist.message };
     }
   }
 
@@ -158,6 +183,7 @@ const handler = async (request: NextRequest) => {
     },
     ...(resolved.length ? { resolved } : {}),
     ...(positionsChecked.length ? { venuesChecked: positionsChecked } : {}),
+    ...(evmHistory ? { evmHistory } : {}),
     blindSpots: blindSpots(
       req,
       stats,
