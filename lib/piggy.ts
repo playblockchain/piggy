@@ -27,6 +27,10 @@ function val<T>(value: T, basis: Basis, source: string): Valued<T> {
 
 /** Sum of usdValue across balances, or null when the caller priced nothing. */
 function pricedTotal(balances: TokenBalance[]): number | null {
+  // No balances at all is an empty wallet, not an unpriced one. Without this,
+  // `balances: []` fell through to "unreadable" and the Clean Slate card —
+  // the whole onboarding case — was unreachable.
+  if (balances.length === 0) return 0;
   const priced = balances.filter((b) => typeof b.usdValue === "number");
   if (priced.length === 0) return null;
   return priced.reduce((sum, b) => sum + (b.usdValue ?? 0), 0);
@@ -338,7 +342,14 @@ export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[
       risk: "You keep full SOL price exposure, and liquid-staking tokens can trade below SOL.",
     });
   }
-  if (stats.concentration.value !== null && stats.concentration.value > 0.5) {
+  // Only nag about concentration when the biggest holding is not a stablecoin:
+  // "spread out your single biggest position" is absurd advice when that
+  // position is USDC.
+  if (
+    stats.concentration.value !== null &&
+    stats.concentration.value > 0.5 &&
+    (stable ?? 0) < 0.5
+  ) {
     steps.push({
       action: "Spread out the single biggest position",
       piggySays: "One token is carrying your whole personality. That is not a strategy, it is a crush.",
@@ -351,6 +362,22 @@ export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[
       action: "Cap the fun money",
       piggySays: "I am not banning the dog coins. I am putting them on a leash.",
       risk: "Capping does not recover what is already down.",
+    });
+  }
+  const perps = req.positions?.perps ?? [];
+  if (perps.length > 0) {
+    const maxLev = Math.max(0, ...perps.map((p) => p.leverage ?? 0));
+    steps.push({
+      action: maxLev >= 5 ? `Bring leverage down — you are at up to ${maxLev}x` : "Size down the open perps",
+      piggySays: "Babe. One wick and I am a raisin. Lower it before I faint.",
+      risk: "Closing or reducing can lock in a loss; leaving it open can liquidate the whole position.",
+    });
+  }
+  if ((req.positions?.predictionMarkets?.length ?? 0) > 0) {
+    steps.push({
+      action: "Cap prediction-market bets to fun money",
+      piggySays: "Betting on the future is cute. Betting the rent on it is not.",
+      risk: "Open bets can resolve to zero, and there is no partial credit for being nearly right.",
     });
   }
   if (req.goal) {

@@ -2,6 +2,9 @@
   "name": "piggy",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
     "dev": "next dev",
     "test:history": "node --experimental-strip-types scripts/test-history.ts",

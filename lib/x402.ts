@@ -36,5 +36,7 @@ export const analyzeRouteConfig = {
     ],
     description:
       "Piggy reads a wallet snapshot and returns a money personality, a mood, and a plan.",
+    // So an agent or a marketplace listing knows what it is paying for.
+    mimeType: "application/json",
   },
 };
