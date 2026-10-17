@@ -11,6 +11,22 @@
  * maintenance mode but still works and only needs a key; Parsed Events is its
  * successor. Everything provider-shaped is confined to fetchHistory, so
  * swapping it later touches one function.
+ *
+ * Why not plain RPC, which needs no key at all? It works — measured against
+ * mainnet on 17 Oct 2026:
+ *
+ *   - getTokenAccountsByOwner finds the wallet's token account. This step is
+ *     essential: inbound SPL transfers touch the TOKEN ACCOUNT, not the owner
+ *     address, so getSignaturesForAddress on the wallet silently misses them.
+ *   - getTransaction with jsonParsed and maxSupportedTransactionVersion: 1
+ *     returns pre/postTokenBalances, and the per-owner delta between them is
+ *     the transfer. Verified against a real transfer: -49.986741 out,
+ *     +49.986741 in, both correct.
+ *
+ * It is not the default because of throughput, not capability: the public RPC
+ * needs one getTransaction per signature, which measured ~1.8s each — about
+ * three minutes for 100 transactions. That is far too slow for an endpoint
+ * someone just paid for. A key buys throughput, not access.
  */
 
 export type HistoryStatus =
