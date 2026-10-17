@@ -2,10 +2,21 @@ import type { Metadata } from "next";
 import { CardView, cardStyles as styles } from "@/app/card-view";
 import { decodeCard } from "@/lib/card-token";
 
-export const metadata: Metadata = {
-  title: "Lil Piggy",
-  description: "A money personality card, read from a wallet snapshot.",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const card = decodeCard((await params).token);
+  if (!card) {
+    return { title: "Lil Piggy", description: "This card link is not readable." };
+  }
+  // The share text is the verdict itself — that is the thing worth passing on.
+  return {
+    title: `${card.persona.name} · Lil Piggy`,
+    description: card.mood.because,
+  };
+}
 
 /** The card is built entirely from its own URL, so it renders per request. */
 export const instant = false;
