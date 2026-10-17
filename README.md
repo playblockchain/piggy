@@ -50,6 +50,28 @@ Piggy asserts things about someone's money, so a wrong number is worse than no n
   plainly that it cannot see deposits, streaks or past trades.
 - **Plans are education, never advice**, and every step names its risk.
 
+## Transaction history
+
+PayBox returns balances, not history — but it hands over the wallet *address*, and everything
+that address has ever done is public. So habits over time come from an indexer
+(`lib/history.ts`, currently Helius), read with the address PayBox supplies.
+
+This unlocks the two habits a snapshot can never show: **DCA/saving** and **raiding savings**.
+
+Set `HELIUS_API_KEY` to turn it on. Without it, habits are reported as unavailable and the
+blind spots say exactly why — they are never inferred from holdings.
+
+Each reading reports what it *measured*, not what it concluded: "5 swaps spread over about 6
+weeks, timing varying by about 3 days" rather than "you DCA". Intent is not observable; cadence
+is.
+
+The pure transform is covered by fixture tests, because the live provider response cannot be
+verified without a key:
+
+```bash
+npm run test:history
+```
+
 ## Cohorts
 
 The differentiated part of Piggy is comparing a user to wallets funded like them. Cohorts are
@@ -68,5 +90,7 @@ and very noisy on long-tail tokens.
 ## Not yet done
 
 - `data/cohorts.json` is empty; the queries have not been run.
-- The artwork in `app/piggy.tsx` is a geometric placeholder, meant to be replaced.
+- The artwork in `app/piggy.tsx` is a vector stand-in for the real illustrations.
 - No real PayBox call has been made end to end yet.
+- The live Helius request in `fetchHistory` has never run against the real API — only its
+  pure transform is tested. The first call with a real key is the thing to watch.

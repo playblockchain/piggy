@@ -131,6 +131,17 @@ export interface AnalyzeResponse {
   mood: { mood: Mood; because: string };
   /** The habit Piggy is reacting to, and whether it was readable at all. */
   scenario: { scenario: Scenario; because: string };
+  /**
+   * What reading transaction history found, or why it could not. Separate from
+   * `stats` because it comes from an indexer, not from PayBox.
+   */
+  history: {
+    status: string;
+    message?: string;
+    funding?: { depositCount: number; medianDepositUsdc: number | null; regularity: string; measured: string };
+    dca?: { detected: boolean; measured: string };
+    raidingSavings?: { detected: boolean; measured: string };
+  };
   stats: Stats;
   plan: { steps: PlanStep[]; disclaimer: string };
   cohort: CohortReading;

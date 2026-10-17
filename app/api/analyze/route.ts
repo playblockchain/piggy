@@ -10,6 +10,7 @@ import {
   pickPersona,
   pickScenario,
 } from "@/lib/piggy";
+import { deriveHabits, fetchHistory } from "@/lib/history";
 import { analyzeRouteConfig, PAY_TO, resourceServer } from "@/lib/x402";
 import type { AnalyzeRequest, AnalyzeResponse } from "@/lib/types";
 
@@ -54,8 +55,25 @@ const handler = async (request: NextRequest) => {
 
   const stats = computeStats(req);
   const persona = pickPersona(req, stats);
-  const mood = pickMood(stats, persona);
-  const scenario = pickScenario(req, stats);
+
+  // History comes from an indexer, not PayBox. Read the first Solana address;
+  // if it is unavailable for any reason, habits stay unknown rather than being
+  // inferred from holdings.
+  const solanaAddress = req.wallets.find((w) => w.chain === "solana")?.address;
+  const historyResult = solanaAddress
+    ? await fetchHistory(solanaAddress)
+    : {
+        status: "unsupported_chain" as const,
+        transactions: [],
+        message: "No Solana address was supplied, so I could not read transaction history.",
+      };
+  const habits =
+    historyResult.status === "ok"
+      ? deriveHabits(solanaAddress as string, historyResult.transactions)
+      : undefined;
+
+  const mood = pickMood(stats, persona, habits);
+  const scenario = pickScenario(req, stats, habits);
   const plan = buildPlan(req, stats);
   const cohort = readCohort(req, stats);
   const asOf = new Date().toISOString();
@@ -82,7 +100,14 @@ const handler = async (request: NextRequest) => {
     stats,
     plan,
     cohort,
-    blindSpots: blindSpots(req, stats),
+    history: {
+      status: historyResult.status,
+      message: historyResult.message,
+      funding: habits?.funding,
+      dca: habits?.dca,
+      raidingSavings: habits?.raidingSavings,
+    },
+    blindSpots: blindSpots(req, stats, habits ? undefined : historyResult.message),
     cardUrl: `${origin}/card/${token}`,
   };
 

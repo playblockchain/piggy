@@ -1,3 +1,4 @@
+import type { HabitReading } from "./history";
 import type {
   AnalyzeRequest,
   Basis,
@@ -156,11 +157,24 @@ export function pickPersona(req: AnalyzeRequest, stats: Stats): Persona {
   };
 }
 
-export function pickMood(stats: Stats, persona: Persona): { mood: Mood; because: string } {
+export function pickMood(
+  stats: Stats,
+  persona: Persona,
+  habits?: HabitReading,
+): { mood: Mood; because: string } {
   const longTail = stats.longTailShare.value;
   const staked = stats.stakedShare.value ?? 0;
   const stable = stats.stableShare.value ?? 0;
   const concentration = stats.concentration.value ?? 0;
+
+  // Habits read from history outrank anything a snapshot can show: what you
+  // keep doing says more than what you happen to hold today.
+  if (habits?.raidingSavings.detected) {
+    return { mood: "sad", because: "You keep taking money back out of your savings." };
+  }
+  if (habits?.dca.detected && (longTail === null || longTail < 0.5)) {
+    return { mood: "excited", because: "You are buying on a rhythm and I am obsessed with you." };
+  }
 
   // Curious is the honest face for "I cannot read this yet" — better than
   // picking a feeling about data Piggy does not have.
@@ -194,11 +208,17 @@ export function pickMood(stats: Stats, persona: Persona): { mood: Mood; because:
 export function pickScenario(
   req: AnalyzeRequest,
   stats: Stats,
+  habits?: HabitReading,
 ): { scenario: Scenario; because: string } {
   const longTail = stats.longTailShare.value;
   const staked = stats.stakedShare.value ?? 0;
   const stable = stats.stableShare.value ?? 0;
 
+  // Habits over time first, since they are the harder-won signal. Each
+  // `because` repeats what was actually counted rather than asserting intent.
+  if (habits?.raidingSavings.detected) {
+    return { scenario: "raiding_savings", because: habits.raidingSavings.measured };
+  }
   if ((req.positions?.predictionMarkets?.length ?? 0) > 0) {
     return { scenario: "gambling", because: "You have open prediction-market positions." };
   }
@@ -210,6 +230,9 @@ export function pickScenario(
   }
   if (longTail > 0.5) {
     return { scenario: "buying_memecoins", because: "Most of your balance is long-tail tokens." };
+  }
+  if (habits?.dca.detected) {
+    return { scenario: "dca_saving", because: habits.dca.measured };
   }
   if (staked > 0.3) {
     return { scenario: "staking_yield", because: "A real share of your balance is staked." };
@@ -284,14 +307,21 @@ export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[
 }
 
 /** What Piggy could not see. Shown to the user rather than quietly omitted. */
-export function blindSpots(req: AnalyzeRequest, stats: Stats): string[] {
+export function blindSpots(
+  req: AnalyzeRequest,
+  stats: Stats,
+  historyMessage?: string,
+): string[] {
   const out: string[] = [];
   if (stats.totalUsd.value === null) {
     out.push("No USD prices were supplied, so every share below is unavailable.");
   }
-  out.push(
-    "This is a snapshot of what you hold now. PayBox's portfolio tool does not return transaction history, so I cannot see your deposits, DCA streaks or past trades — which means I cannot tell whether you are saving steadily or raiding your own savings.",
-  );
+  if (historyMessage) {
+    // History could not be read, so habits over time are genuinely unknown.
+    out.push(
+      `${historyMessage} Without it I cannot tell whether you are saving steadily or raiding your own savings.`,
+    );
+  }
   if (!req.positions?.perps?.length) {
     out.push("No perps data was supplied, so leverage is unknown.");
   }

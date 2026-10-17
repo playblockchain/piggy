@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "test:history": "node --experimental-strip-types scripts/test-history.ts",
     "build": "next build",
     "start": "next start"
   },
