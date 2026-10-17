@@ -25,6 +25,13 @@
   --sad: #b2552b;
   --unhinged: #a3272c;
 
+  /* Lil Piggy character palette, from the brand sheet. */
+  --piggy-blob: #fbe3e6;
+  --piggy-body: #fffdfc;
+  --piggy-outline: #4a3a3d;
+  --piggy-blush: #f7c6cd;
+  --piggy-gold: #e8b84b;
+
   --radius: 12px;
   --radius-sm: 8px;
   --border-width: 1px;
@@ -64,6 +71,14 @@
     --okay: #d6b65c;
     --sad: #e08a5f;
     --unhinged: #e8686d;
+
+    /* The character keeps its light colouring in dark mode — it is artwork,
+       not UI chrome, and inverting it makes the pig look ill. */
+    --piggy-blob: #3a2a2e;
+    --piggy-body: #f6eceb;
+    --piggy-outline: #3b2d30;
+    --piggy-blush: #e8a7b0;
+    --piggy-gold: #e8b84b;
 
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }

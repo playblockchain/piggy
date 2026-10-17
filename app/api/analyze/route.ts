@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { withX402 } from "@x402/next";
 import { encodeCard } from "@/lib/card-token";
 import { readCohort } from "@/lib/cohorts";
-import { blindSpots, buildPlan, computeStats, pickMood, pickPersona } from "@/lib/piggy";
+import {
+  blindSpots,
+  buildPlan,
+  computeStats,
+  pickMood,
+  pickPersona,
+  pickScenario,
+} from "@/lib/piggy";
 import { analyzeRouteConfig, PAY_TO, resourceServer } from "@/lib/x402";
 import type { AnalyzeRequest, AnalyzeResponse } from "@/lib/types";
 
@@ -48,6 +55,7 @@ const handler = async (request: NextRequest) => {
   const stats = computeStats(req);
   const persona = pickPersona(req, stats);
   const mood = pickMood(stats, persona);
+  const scenario = pickScenario(req, stats);
   const plan = buildPlan(req, stats);
   const cohort = readCohort(req, stats);
   const asOf = new Date().toISOString();
@@ -70,6 +78,7 @@ const handler = async (request: NextRequest) => {
     asOf,
     persona,
     mood,
+    scenario,
     stats,
     plan,
     cohort,

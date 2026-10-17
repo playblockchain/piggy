@@ -54,7 +54,30 @@ export interface AnalyzeRequest {
   };
 }
 
-export type Mood = "proud" | "okay" | "sad" | "unhinged";
+/** The seven expressions from the brand sheet. */
+export type Mood =
+  | "happy"
+  | "excited"
+  | "proud"
+  | "curious"
+  | "suspicious"
+  | "sad"
+  | "unhinged";
+
+/**
+ * The habit scenarios from the brand sheet. Five are readable from a snapshot
+ * plus plugin positions; `dca_saving` and `raiding_savings` are habits over
+ * time, so they stay unreachable until Piggy reads transaction history.
+ */
+export type Scenario =
+  | "dca_saving"
+  | "staking_yield"
+  | "healthy_portfolio"
+  | "buying_memecoins"
+  | "perps_leverage"
+  | "gambling"
+  | "raiding_savings"
+  | "unknown";
 
 export type PersonaId =
   | "stable-queen"
@@ -106,6 +129,8 @@ export interface AnalyzeResponse {
   asOf: string;
   persona: Persona;
   mood: { mood: Mood; because: string };
+  /** The habit Piggy is reacting to, and whether it was readable at all. */
+  scenario: { scenario: Scenario; because: string };
   stats: Stats;
   plan: { steps: PlanStep[]; disclaimer: string };
   cohort: CohortReading;

@@ -4,6 +4,7 @@ import type {
   Mood,
   Persona,
   PlanStep,
+  Scenario,
   Stats,
   TokenBalance,
   Valued,
@@ -161,8 +162,10 @@ export function pickMood(stats: Stats, persona: Persona): { mood: Mood; because:
   const stable = stats.stableShare.value ?? 0;
   const concentration = stats.concentration.value ?? 0;
 
+  // Curious is the honest face for "I cannot read this yet" — better than
+  // picking a feeling about data Piggy does not have.
   if (longTail === null) {
-    return { mood: "okay", because: "I cannot see enough to have a feeling about this yet." };
+    return { mood: "curious", because: "I cannot see enough to have a feeling about this yet." };
   }
   if (persona.id === "shrimp-gambler" || (longTail > 0.7 && concentration > 0.6)) {
     return { mood: "unhinged", because: "Nearly everything you own is one risky bet." };
@@ -170,10 +173,51 @@ export function pickMood(stats: Stats, persona: Persona): { mood: Mood; because:
   if (longTail > 0.5) {
     return { mood: "sad", because: "More than half of this is dog coins, babe." };
   }
-  if (staked + stable > 0.5) {
-    return { mood: "proud", because: "Most of your money is somewhere it can actually work." };
+  if (staked + stable > 0.7 && longTail < 0.1) {
+    return { mood: "proud", because: "Almost all of your money is somewhere it can actually work." };
   }
-  return { mood: "okay", because: "Mixed. Not a disaster, not a crown." };
+  if (staked > 0.3) {
+    return { mood: "excited", because: "You are staking properly and I am not normal about it." };
+  }
+  if (staked + stable > 0.5) {
+    return { mood: "happy", because: "Most of your money is somewhere it can actually work." };
+  }
+  return { mood: "suspicious", because: "Mixed. I am watching you." };
+}
+
+/**
+ * Which habit Piggy is reacting to. Only habits visible in a snapshot or in
+ * plugin positions are ever returned — DCA and raiding savings need
+ * transaction history, which PayBox does not provide, so they stay unreachable
+ * rather than being guessed at.
+ */
+export function pickScenario(
+  req: AnalyzeRequest,
+  stats: Stats,
+): { scenario: Scenario; because: string } {
+  const longTail = stats.longTailShare.value;
+  const staked = stats.stakedShare.value ?? 0;
+  const stable = stats.stableShare.value ?? 0;
+
+  if ((req.positions?.predictionMarkets?.length ?? 0) > 0) {
+    return { scenario: "gambling", because: "You have open prediction-market positions." };
+  }
+  if ((req.positions?.perps?.length ?? 0) > 0) {
+    return { scenario: "perps_leverage", because: "You have open perps positions." };
+  }
+  if (longTail === null) {
+    return { scenario: "unknown", because: "No prices were supplied, so I cannot weigh anything." };
+  }
+  if (longTail > 0.5) {
+    return { scenario: "buying_memecoins", because: "Most of your balance is long-tail tokens." };
+  }
+  if (staked > 0.3) {
+    return { scenario: "staking_yield", because: "A real share of your balance is staked." };
+  }
+  if (staked + stable > 0.5 && longTail < 0.25) {
+    return { scenario: "healthy_portfolio", because: "Spread sensibly, nothing wild." };
+  }
+  return { scenario: "unknown", because: "Nothing in this snapshot stands out as a habit." };
 }
 
 export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[]; disclaimer: string } {
@@ -246,7 +290,7 @@ export function blindSpots(req: AnalyzeRequest, stats: Stats): string[] {
     out.push("No USD prices were supplied, so every share below is unavailable.");
   }
   out.push(
-    "This is a snapshot of what you hold now. PayBox's portfolio tool does not return transaction history, so I cannot see your deposits, DCA streaks or past trades.",
+    "This is a snapshot of what you hold now. PayBox's portfolio tool does not return transaction history, so I cannot see your deposits, DCA streaks or past trades — which means I cannot tell whether you are saving steadily or raiding your own savings.",
   );
   if (!req.positions?.perps?.length) {
     out.push("No perps data was supplied, so leverage is unknown.");

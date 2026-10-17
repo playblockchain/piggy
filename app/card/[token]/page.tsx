@@ -5,8 +5,11 @@ import type { Mood } from "@/lib/types";
 import styles from "./card.module.css";
 
 const MOOD_TOKEN: Record<Mood, string> = {
+  happy: "var(--proud)",
+  excited: "var(--proud)",
   proud: "var(--proud)",
-  okay: "var(--okay)",
+  curious: "var(--text-muted)",
+  suspicious: "var(--okay)",
   sad: "var(--sad)",
   unhinged: "var(--unhinged)",
 };
@@ -107,7 +110,7 @@ export default async function CardPage({ params }: { params: Promise<{ token: st
         </footer>
       </article>
 
-      <p className={styles.tagline}>Lil Piggy — we make wealth management easy</p>
+      <p className={styles.tagline}>lil piggy — little pig, big feelings</p>
     </main>
   );
 }

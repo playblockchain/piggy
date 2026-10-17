@@ -1,20 +1,141 @@
 import type { Mood } from "@/lib/types";
 
-const MOOD_TOKEN: Record<Mood, string> = {
-  proud: "var(--proud)",
-  okay: "var(--okay)",
-  sad: "var(--sad)",
-  unhinged: "var(--unhinged)",
+/**
+ * Lil Piggy, drawn from the brand sheet: soft pink blob, thin dark outline,
+ * chubby round body, blush cheeks, tiny props. Seven expressions.
+ *
+ * This is still vector stand-in art. When the real illustrations land as
+ * files, swap this component for <img> and keep the same mood prop.
+ */
+
+const LABEL: Record<Mood, string> = {
+  happy: "content",
+  excited: "excited",
+  proud: "proud, wearing a crown",
+  curious: "curious",
+  suspicious: "suspicious",
+  sad: "sad",
+  unhinged: "unhinged",
 };
 
-/**
- * Placeholder artwork: geometric, legible at small sizes, and easy to swap for
- * real illustration. Size reflects mood — Piggy grows when the habits are good
- * and shrinks when they are not.
- */
+function Face({ mood }: { mood: Mood }) {
+  const ink = "var(--piggy-outline)";
+
+  if (mood === "happy" || mood === "excited") {
+    // Closed, upturned eyes — the "^ ^" of the reference sheet.
+    return (
+      <>
+        <path d="M62 88 q6 -7 12 0" stroke={ink} strokeWidth="3" strokeLinecap="round" fill="none" />
+        <path d="M86 88 q6 -7 12 0" stroke={ink} strokeWidth="3" strokeLinecap="round" fill="none" />
+      </>
+    );
+  }
+  if (mood === "unhinged") {
+    return (
+      <>
+        <path d="M62 83 l12 11 M74 83 l-12 11" stroke={ink} strokeWidth="2.8" strokeLinecap="round" />
+        <path d="M86 83 l12 11 M98 83 l-12 11" stroke={ink} strokeWidth="2.8" strokeLinecap="round" />
+      </>
+    );
+  }
+  if (mood === "suspicious") {
+    // Flat, narrowed eyes.
+    return (
+      <>
+        <path d="M62 89 h12" stroke={ink} strokeWidth="3.2" strokeLinecap="round" />
+        <path d="M86 89 h12" stroke={ink} strokeWidth="3.2" strokeLinecap="round" />
+      </>
+    );
+  }
+  return (
+    <>
+      <ellipse cx="68" cy="88" rx="4" ry="4.6" fill={ink} />
+      <ellipse cx="92" cy="88" rx="4" ry="4.6" fill={ink} />
+    </>
+  );
+}
+
+function Prop({ mood }: { mood: Mood }) {
+  const ink = "var(--piggy-outline)";
+
+  switch (mood) {
+    case "proud":
+      return (
+        <path
+          d="M62 48 L70 60 L80 44 L90 60 L98 48 L95 64 L65 64 Z"
+          fill="var(--piggy-gold)"
+          stroke={ink}
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+      );
+    case "happy":
+      return (
+        <path
+          d="M80 40 c-4 -6 -13 -2 -10 5 c2 5 10 9 10 9 s8 -4 10 -9 c3 -7 -6 -11 -10 -5 z"
+          fill="var(--piggy-blush)"
+          stroke={ink}
+          strokeWidth="2.2"
+          strokeLinejoin="round"
+        />
+      );
+    case "excited":
+      return (
+        <g stroke={ink} strokeWidth="2.2" strokeLinecap="round">
+          <path d="M50 58 v8 M46 62 h8" />
+          <path d="M110 54 v8 M106 58 h8" />
+          <path d="M80 42 v7 M76.5 45.5 h7" />
+        </g>
+      );
+    case "curious":
+      return (
+        <text
+          x="108"
+          y="56"
+          fontSize="26"
+          fontWeight="600"
+          fill={ink}
+          fontFamily="var(--font-geist-sans), system-ui, sans-serif"
+        >
+          ?
+        </text>
+      );
+    case "suspicious":
+      return (
+        <g fill={ink}>
+          <circle cx="104" cy="54" r="2.6" />
+          <circle cx="113" cy="54" r="2.6" />
+          <circle cx="122" cy="54" r="2.6" />
+        </g>
+      );
+    case "unhinged":
+      return (
+        <path
+          d="M56 52 L80 34 L104 52 L98 60 L62 60 Z"
+          fill="var(--surface-2)"
+          stroke={ink}
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+      );
+    default:
+      return null;
+  }
+}
+
 export function Piggy({ mood, size = 160 }: { mood: Mood; size?: number }) {
-  const scale = mood === "proud" ? 1 : mood === "okay" ? 0.92 : mood === "sad" ? 0.82 : 0.72;
-  const accent = MOOD_TOKEN[mood];
+  const ink = "var(--piggy-outline)";
+  // Piggy shrinks as the habits get worse — the brand sheet's whole premise.
+  const scale =
+    mood === "proud" || mood === "excited"
+      ? 1
+      : mood === "happy"
+        ? 0.97
+        : mood === "curious" || mood === "suspicious"
+          ? 0.92
+          : mood === "sad"
+            ? 0.84
+            : 0.76;
 
   return (
     <svg
@@ -22,77 +143,49 @@ export function Piggy({ mood, size = 160 }: { mood: Mood; size?: number }) {
       height={size}
       viewBox="0 0 160 160"
       role="img"
-      aria-label={`Piggy looking ${mood}`}
+      aria-label={`Lil Piggy looking ${LABEL[mood]}`}
       style={{ display: "block" }}
     >
-      <g transform={`translate(80 86) scale(${scale}) translate(-80 -86)`}>
-        {mood === "proud" && (
-          <path
-            d="M54 36 L66 52 L80 32 L94 52 L106 36 L102 58 L58 58 Z"
-            fill={accent}
-            stroke="var(--text-strong)"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-          />
-        )}
-        {mood === "unhinged" && (
-          <path
-            d="M50 40 L80 24 L110 40 L104 52 L56 52 Z"
-            fill="var(--surface-2)"
-            stroke="var(--text-strong)"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-          />
-        )}
+      {/* soft blob */}
+      <path
+        d="M80 16 c34 0 60 20 62 48 c2 28 -16 56 -46 62 c-30 6 -58 -4 -70 -26 c-12 -22 -8 -56 14 -70 c12 -8 24 -14 40 -14 z"
+        fill="var(--piggy-blob)"
+      />
+
+      <g transform={`translate(80 92) scale(${scale}) translate(-80 -92)`}>
+        <Prop mood={mood} />
 
         {/* ears */}
-        <path d="M46 62 L52 40 L70 54 Z" fill="var(--accent-soft)" stroke="var(--text-strong)" strokeWidth="2.5" strokeLinejoin="round" />
-        <path d="M114 62 L108 40 L90 54 Z" fill="var(--accent-soft)" stroke="var(--text-strong)" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M50 70 L57 50 L72 62 Z" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+        <path d="M110 70 L103 50 L88 62 Z" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
 
-        {/* head */}
-        <ellipse cx="80" cy="92" rx="46" ry="40" fill="var(--accent-soft)" stroke="var(--text-strong)" strokeWidth="2.5" />
+        {/* body */}
+        <ellipse cx="80" cy="94" rx="44" ry="38" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.8" />
 
-        {/* eyes */}
-        {mood === "unhinged" ? (
-          <>
-            <path d="M60 84 l12 10 M72 84 l-12 10" stroke="var(--text-strong)" strokeWidth="3" strokeLinecap="round" />
-            <path d="M88 84 l12 10 M100 84 l-12 10" stroke="var(--text-strong)" strokeWidth="3" strokeLinecap="round" />
-          </>
-        ) : mood === "okay" ? (
-          <>
-            <path d="M58 88 h14" stroke="var(--text-strong)" strokeWidth="3.5" strokeLinecap="round" />
-            <path d="M88 88 h14" stroke="var(--text-strong)" strokeWidth="3.5" strokeLinecap="round" />
-          </>
-        ) : (
-          <>
-            <circle cx="65" cy="87" r="4.5" fill="var(--text-strong)" />
-            <circle cx="95" cy="87" r="4.5" fill="var(--text-strong)" />
-          </>
-        )}
+        {/* blush */}
+        <ellipse cx="50" cy="99" rx="7.5" ry="5" fill="var(--piggy-blush)" />
+        <ellipse cx="110" cy="99" rx="7.5" ry="5" fill="var(--piggy-blush)" />
+
+        <Face mood={mood} />
 
         {mood === "sad" && (
-          <path d="M65 94 q2 10 -2 16" stroke={accent} strokeWidth="3" strokeLinecap="round" fill="none" />
+          <>
+            <path d="M68 95 q2 9 -1 15" stroke="var(--piggy-blush)" strokeWidth="3" strokeLinecap="round" fill="none" />
+            <path d="M92 95 q2 9 -1 15" stroke="var(--piggy-blush)" strokeWidth="3" strokeLinecap="round" fill="none" />
+          </>
         )}
 
         {/* snout */}
-        <ellipse cx="80" cy="106" rx="19" ry="13" fill="var(--surface)" stroke="var(--text-strong)" strokeWidth="2.5" />
-        <ellipse cx="74" cy="106" rx="3" ry="4.5" fill="var(--text-strong)" />
-        <ellipse cx="86" cy="106" rx="3" ry="4.5" fill="var(--text-strong)" />
+        <ellipse cx="80" cy="106" rx="16" ry="11" fill="var(--piggy-body)" stroke={ink} strokeWidth="2.6" />
+        <ellipse cx="75" cy="106" rx="2.4" ry="3.6" fill={ink} />
+        <ellipse cx="85" cy="106" rx="2.4" ry="3.6" fill={ink} />
 
         {/* mouth */}
-        <path
-          d={
-            mood === "proud"
-              ? "M64 120 q16 12 32 0"
-              : mood === "okay"
-                ? "M68 121 h24"
-                : "M64 124 q16 -12 32 0"
-          }
-          stroke="var(--text-strong)"
-          strokeWidth="3"
-          strokeLinecap="round"
-          fill="none"
-        />
+        {mood === "sad" || mood === "unhinged" ? (
+          <path d="M70 122 q10 -8 20 0" stroke={ink} strokeWidth="2.6" strokeLinecap="round" fill="none" />
+        ) : mood === "happy" || mood === "excited" || mood === "proud" ? (
+          <path d="M70 120 q10 8 20 0" stroke={ink} strokeWidth="2.6" strokeLinecap="round" fill="none" />
+        ) : null}
       </g>
     </svg>
   );
