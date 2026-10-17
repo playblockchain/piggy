@@ -12,6 +12,12 @@ balances, pays Piggy a couple of cents per call, and gets back a personality, a 
 and a link to a shareable card page. If the user decides to act, **the agent** executes
 through PayBox. Piggy never holds funds, never signs, and stores nothing.
 
+Execution is pointed at the PayBox plugins that can actually act: **Kamino** (deposit and
+withdraw from lending vaults), **Jupiter** (trade and earn) and **Sunrise** (trade listed
+Solana assets). Plugins that only browse — Aave, Hyperliquid — are useful as inputs, and are
+never offered as a way to carry something out. All three execution plugins are Solana, which
+is why the cohort queries are Solana-first too.
+
 ## Endpoints
 
 | Route | What it does | Paid |

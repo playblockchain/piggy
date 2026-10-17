@@ -182,11 +182,14 @@ export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[
   const staked = stats.stakedShare.value;
   const longTail = stats.longTailShare.value;
 
+  // Every executeWith names a PayBox plugin that can actually act — Kamino
+  // (deposit/withdraw), Jupiter (trade/earn) and Sunrise (trade). Read-only
+  // plugins are never offered as a way to do something.
   if (stable !== null && stable > 0.4) {
     steps.push({
       action: "Put part of your idle stablecoins to work",
       piggySays: "This cash is just sitting there looking pretty. Give it a job.",
-      executeWith: "Kamino or Jupiter Lend, via your agent's PayBox plugin",
+      executeWith: "Kamino Lending Vaults, via your agent's PayBox plugin",
       risk: "Lending carries smart-contract risk and the rate moves. This is not a savings account.",
     });
   }
@@ -196,6 +199,14 @@ export function buildPlan(req: AnalyzeRequest, stats: Stats): { steps: PlanStep[
       piggySays: "Staked SOL still moves with SOL. It just stops doing nothing.",
       executeWith: "Jupiter, via your agent's PayBox plugin",
       risk: "You keep full SOL price exposure, and liquid-staking tokens can trade below SOL.",
+    });
+  }
+  if (stats.concentration.value !== null && stats.concentration.value > 0.5) {
+    steps.push({
+      action: "Spread out the single biggest position",
+      piggySays: "One token is carrying your whole personality. That is not a strategy, it is a crush.",
+      executeWith: "Jupiter or Sunrise, via your agent's PayBox plugin",
+      risk: "Selling crystallises any loss, and the thing you sell may go up afterwards.",
     });
   }
   if (longTail !== null && longTail > 0.4) {
