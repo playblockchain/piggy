@@ -267,18 +267,34 @@ export function deriveHabits(address: string, txs: ParsedTx[]): HabitReading {
   const swapSpanWeeks = swaps.length >= 2 ? (swaps[swaps.length - 1] - swaps[0]) / (DAY * 7) : 0;
   const dcaDetected = swaps.length >= 3 && swapSpanWeeks >= 3 && swapSpread !== null && swapSpread <= 7;
 
-  // Raiding savings: stablecoins or staked assets leaving the wallet.
-  const raids = txs.filter((t) =>
-    (t.tokenTransfers ?? []).some(
-      (tt) =>
-        tt.fromUserAccount === address &&
-        tt.toUserAccount !== address &&
-        typeof tt.mint === "string" &&
-        (STABLE_MINTS.has(tt.mint) || STAKED_MINTS.has(tt.mint)) &&
-        typeof tt.tokenAmount === "number" &&
-        tt.tokenAmount > 0,
-    ),
-  );
+  /**
+   * Raiding savings is taking money back OUT of a savings position. It is not
+   * spending.
+   *
+   * The first version flagged any two outbound stablecoin transfers, which
+   * meant anyone who paid for something twice got told they were raiding their
+   * savings — tested against real wallets, it fired on every single one. Paying
+   * for things is what money is for.
+   *
+   * So it now counts only: staked assets leaving (unstaking), or stablecoins
+   * sold inside a swap (cashing the safe pile into something else). A plain
+   * transfer out is spending, and Piggy says nothing about it.
+   */
+  const raids = txs.filter((t) => {
+    const transfers = t.tokenTransfers ?? [];
+    const leaving = (mints: Set<string>) =>
+      transfers.some(
+        (tt) =>
+          tt.fromUserAccount === address &&
+          tt.toUserAccount !== address &&
+          typeof tt.mint === "string" &&
+          mints.has(tt.mint) &&
+          typeof tt.tokenAmount === "number" &&
+          tt.tokenAmount > 0,
+      );
+    if (leaving(STAKED_MINTS)) return true;
+    return t.type === "SWAP" && leaving(STABLE_MINTS);
+  });
 
   const allStamps = txs.map((t) => t.timestamp ?? 0).filter((t) => t > 0).sort((a, b) => a - b);
   const windowDays =

@@ -10,7 +10,8 @@
     "import:cohorts": "node --experimental-strip-types scripts/import-cohorts.ts",
     "check:cohorts": "node --experimental-strip-types scripts/check-cohorts.ts",
     "prebuild": "node --experimental-strip-types scripts/check-cohorts.ts",
-    "test": "npm run test:history && npm run check:cohorts"
+    "test": "npm run test:history && npm run check:cohorts",
+    "harvest": "node --experimental-strip-types scripts/harvest-cohorts.ts"
   },
   "dependencies": {
     "@x402/core": "^2.28.0",

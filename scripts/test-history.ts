@@ -94,17 +94,28 @@ check("does not call erratic swaps DCA", () => {
   assert.equal(h.dca.detected, false);
 });
 
-check("detects stablecoins leaving the wallet twice", () => {
+check("plain stablecoin spending is NOT raiding savings", () => {
+  // Found against real wallets: this fired on everyone. Paying for things is
+  // what money is for.
   const h = deriveHabits(ME, [sendAway(1, USDC, 40), sendAway(9, USDC, 60)]);
-  assert.equal(h.raidingSavings.detected, true);
+  assert.equal(h.raidingSavings.detected, false);
 });
 
-check("counts staked assets leaving as raiding too", () => {
+check("selling stablecoins inside a swap IS raiding savings", () => {
+  const sellStables = (d: number): ParsedTx => ({
+    type: "SWAP",
+    timestamp: T0 + d * DAY,
+    tokenTransfers: [{ fromUserAccount: ME, toUserAccount: THEM, mint: USDC, tokenAmount: 80 }],
+  });
+  assert.equal(deriveHabits(ME, [sellStables(1), sellStables(9)]).raidingSavings.detected, true);
+});
+
+check("unstaking counts as raiding, even once", () => {
   const h = deriveHabits(ME, [sendAway(1, JITO, 1), sendAway(9, JITO, 1)]);
   assert.equal(h.raidingSavings.detected, true);
 });
 
-check("one withdrawal is not raiding", () => {
+check("a single stablecoin payment is not raiding", () => {
   const h = deriveHabits(ME, [sendAway(1, USDC, 40)]);
   assert.equal(h.raidingSavings.detected, false);
 });
