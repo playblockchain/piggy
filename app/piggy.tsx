@@ -86,9 +86,23 @@ export function Piggy({
       <g transform={`translate(80 92) scale(${scale}) translate(-80 -92)`}>
         {scenario && <ScenarioProp scenario={scenario} />}
 
-        {/* ears */}
-        <path d="M50 70 L57 50 L72 62 Z" fill="var(--panel)" stroke="var(--ink)" strokeWidth="2.6" strokeLinejoin="round" />
-        <path d="M110 70 L103 50 L88 62 Z" fill="var(--panel)" stroke="var(--ink)" strokeWidth="2.6" strokeLinejoin="round" />
+        {/* ears: floppy and rounded, with a pink inner, so they never read as coins */}
+        <path
+          d="M48 72 C44 54 54 46 66 52 C72 55 74 60 73 66 Z"
+          fill="var(--panel)"
+          stroke="var(--ink)"
+          strokeWidth="2.6"
+          strokeLinejoin="round"
+        />
+        <path d="M55 66 C53 57 58 53 64 57" fill="none" stroke="var(--s1)" strokeWidth="3.4" strokeLinecap="round" />
+        <path
+          d="M112 72 C116 54 106 46 94 52 C88 55 86 60 87 66 Z"
+          fill="var(--panel)"
+          stroke="var(--ink)"
+          strokeWidth="2.6"
+          strokeLinejoin="round"
+        />
+        <path d="M105 66 C107 57 102 53 96 57" fill="none" stroke="var(--s1)" strokeWidth="3.4" strokeLinecap="round" />
 
         {/* body */}
         <ellipse cx="80" cy="94" rx="44" ry="38" fill="var(--panel)" stroke="var(--ink)" strokeWidth="2.8" />

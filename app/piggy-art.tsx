@@ -140,9 +140,9 @@ export function ScenarioProp({ scenario }: { scenario: Scenario }) {
       // A coin going in, and the slot it goes into.
       return (
         <>
-          <rect x="68" y="52" width="24" height="5" rx="2.5" fill={BODY} stroke={INK} strokeWidth="2.2" />
-          <Coin x={80} y={34} />
-          <path d="M80 42 v6" stroke={INK} strokeWidth="2" strokeLinecap="round" strokeDasharray="3 3" />
+          <rect x="66" y="56" width="28" height="6" rx="3" fill="var(--content-pink)" stroke={INK} strokeWidth="2.4" />
+          <Coin x={80} y={32} r={9} />
+          <path d="M80 43 v8" stroke={INK} strokeWidth="2.2" strokeLinecap="round" strokeDasharray="3 4" />
         </>
       );
     case "staking_yield":
@@ -166,9 +166,10 @@ export function ScenarioProp({ scenario }: { scenario: Scenario }) {
             strokeWidth="2.4"
             strokeLinejoin="round"
           />
-          <Coin x={34} y={116} r={8} />
-          <Coin x={34} y={104} r={8} />
-          <Coin x={126} y={116} r={8} />
+          <Coin x={30} y={124} r={8} />
+          <Coin x={30} y={110} r={8} />
+          <Coin x={130} y={124} r={8} />
+          <Coin x={130} y={110} r={8} />
         </>
       );
     case "buying_memecoins":
