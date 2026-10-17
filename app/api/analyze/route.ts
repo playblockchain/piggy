@@ -70,6 +70,7 @@ const handler = async (request: NextRequest) => {
   const callerSuppliedBalances = (req.wallets ?? []).length > 0;
   const readChains = new Set<"solana" | "evm">();
   let advertsIgnored = 0;
+  let pricesRejected = 0;
   if (req.addresses?.length) {
     // People paste names. Resolve them before anything else looks at them.
     const inputs = req.addresses.slice(0, 5);
@@ -81,6 +82,7 @@ const handler = async (request: NextRequest) => {
     for (const f of fetched) {
       if (f.ok) readChains.add(f.chain);
       advertsIgnored += f.advertsIgnored ?? 0;
+      pricesRejected += f.pricesRejected ?? 0;
       resolved.push({
         address: f.address,
         chain: f.chain,
@@ -99,6 +101,20 @@ const handler = async (request: NextRequest) => {
           .map((f) => ({ chain: f.chain, address: f.address, balances: f.balances })),
       ],
     };
+
+    // Not one address could be read, and the caller sent no balances either.
+    // This used to fall through to an empty wallet and return a Clean Slate
+    // card — so a typo bought a cheerful verdict about a wallet that does not
+    // exist, for real money. Failing here means x402 never settles.
+    if (!callerSuppliedBalances && fetched.every((f) => !f.ok)) {
+      const reasons = fetched.map((f) => `${f.address}: ${f.message ?? "could not be read"}`);
+      return badRequest(
+        fetched.length === 1
+          ? `I could not read that address. ${reasons[0]}`
+          : `I could not read any of those addresses. ${reasons.join(" ")}`,
+        "Check the address, or send `wallets` with balances you already have. Nothing was charged for this.",
+      );
+    }
   }
 
   // Positions are not balances: a leveraged bet lives at a venue, so Piggy
@@ -170,7 +186,7 @@ const handler = async (request: NextRequest) => {
       ? deriveHabits(solanaAddress as string, historyResult.transactions)
       : undefined;
 
-  const mood = pickMood(stats, persona, habits, perpsHistory);
+  const mood = pickMood(stats, persona, habits, perpsHistory, req.positions);
   const scenario = pickScenario(req, stats, habits, perpsHistory);
   const band = pickBand(stats);
   const plan = buildPlan(req, stats, perpsHistory);
@@ -189,6 +205,14 @@ const handler = async (request: NextRequest) => {
       totalKnown: stats.totalUsd.value !== null,
     },
     cohort: { status: cohort.status, label: cohort.label, note: cohort.note },
+    // The card carries the lead action and the money at risk, so the thing
+    // people actually share says what to do and what is on the line.
+    ...(plan.steps[0]
+      ? { firstStep: { action: plan.steps[0].action, piggySays: plan.steps[0].piggySays } }
+      : {}),
+    ...(typeof stats.gamblingExposureUsd.value === "number"
+      ? { exposureUsd: stats.gamblingExposureUsd.value }
+      : {}),
     asOf,
     band: band.band,
     scenario: scenario.scenario,
@@ -227,6 +251,7 @@ const handler = async (request: NextRequest) => {
       habits?.walletKind.kind === "infrastructure" ? habits.walletKind.because : undefined,
       positionsChecked.filter((v) => v.ok).map((v) => v.venue),
       advertsIgnored,
+      pricesRejected,
     ),
     cardUrl: `${origin}${cardPath}`,
     cardImageUrl: `${origin}${cardPath}/opengraph-image`,

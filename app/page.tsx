@@ -63,8 +63,10 @@ export default function Home() {
 
         <Window title="How it is used" tone="peach">
           <p className={styles.body}>
-            Lil Piggy is a paid service an AI agent calls, not an app you open. Your agent fetches
-            your balances through PayBox, pays me a couple of cents over x402, and gets back a
+            Lil Piggy is a paid service an AI agent calls, not an app you open. Give me an
+            address — your own, one PayBox has connected, an ENS name, or a stranger&rsquo;s — and I
+            go and read it myself across Solana, Ethereum, Base and Polygon, plus Hyperliquid,
+            Veranta and Polymarket. Your agent pays me a couple of cents over x402 and gets back a
             personality, a mood, a plan and a link to your card. If you want to act, your agent
             executes through Kamino, Jupiter or Sunrise and you approve it with your passkey.
           </p>
@@ -73,31 +75,24 @@ export default function Home() {
 Content-Type: application/json
 
 {
-  "wallets": [
-    {
-      "chain": "solana",
-      "address": "<address>",
-      "balances": [
-        { "symbol": "USDC", "amount": 120, "usdValue": 120 },
-        { "symbol": "JUPSOL", "amount": 1.4, "usdValue": 210 }
-      ]
-    }
-  ],
+  "addresses": ["vitalik.eth", "<solana or evm address>"],
   "selfReported": { "incomeRegularity": "irregular" }
 }`}</code>
           </pre>
           <p className={styles.note}>
-            Positions from enabled PayBox plugins — lending, perps, prediction markets — can come
-            alongside the balances, and I will use them. Anything not supplied I report as unknown
-            rather than guessing.
+            Send <code>wallets</code> with balances instead if you already have them, and I will
+            use those rather than fetching. Positions from enabled PayBox plugins can come
+            alongside either. Anything I cannot read I report as unknown rather than guessing.
           </p>
         </Window>
 
         <Window title="What I cannot see" tone="pink">
           <p className={styles.body}>
-            PayBox hands me current balances, not transaction history. I read history separately from
-            the chain, using the address PayBox gives me — and when that is unavailable I say so on
-            your card instead of inventing a habit. I do not make up your past trades.
+            I read six months of transaction history from the chain, not from PayBox — and when a
+            chain or a venue is unavailable I say so on your card instead of inventing a habit. I
+            do not make up your past trades. Airdropped tokens whose name is an advert are left
+            out, and a token quoting a price far beyond everything else in the wallet is carried
+            as unvalued rather than counted: anyone can seed a pool.
           </p>
         </Window>
 

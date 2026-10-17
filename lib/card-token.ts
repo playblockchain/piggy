@@ -19,6 +19,18 @@ export interface CardPayload {
     majorShare?: number | null;
     totalKnown: boolean;
   };
+  /**
+   * The lead plan step. The card used to show a personality and no way out of
+   * it — a 25x position read as "50% in stablecoins" with nothing to do about
+   * it. Optional so cards made before this still render.
+   */
+  firstStep?: { action: string; piggySays: string };
+  /**
+   * Money at risk in open positions, in USD. Deliberately separate from the
+   * shares: it is notional and stake, not a holding, and must never be added
+   * to them.
+   */
+  exposureUsd?: number | null;
   cohort: { status: "ok" | "unavailable"; label?: string; note: string };
   asOf: string;
   /** Optional so links made before bands existed still render. */

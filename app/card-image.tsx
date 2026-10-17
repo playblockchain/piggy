@@ -135,6 +135,23 @@ export function renderCardImage(card: CardPayload | null): ImageResponse {
               <div style={{ marginTop: 18, fontSize: 25, color: TEXT, lineHeight: 1.35, maxWidth: 470 }}>
                 {because}
               </div>
+              {/* The bet belongs on the thing people share, not only on the page. */}
+              {typeof card?.exposureUsd === "number" && card.exposureUsd > 0 && (
+                <div
+                  style={{
+                    marginTop: 16,
+                    alignSelf: "flex-start",
+                    padding: "8px 18px",
+                    borderRadius: 12,
+                    border: `4px solid ${INK}`,
+                    background: "#FFE5A0",
+                    fontSize: 23,
+                    color: TEXT,
+                  }}
+                >
+                  ${Math.round(card.exposureUsd).toLocaleString()} riding on open positions
+                </div>
+              )}
             </div>
 
             {piggy && (

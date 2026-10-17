@@ -206,6 +206,8 @@ export function pickMood(
   persona: Persona,
   habits?: HabitReading,
   perpsHistory: PerpsHistory[] = [],
+  /** Open positions right now. A live bet outranks anything the holdings say. */
+  positions?: AnalyzeRequest["positions"],
 ): { mood: Mood; because: string } {
   const longTail = stats.longTailShare.value;
   const staked = stats.stakedShare.value ?? 0;
@@ -226,6 +228,33 @@ export function pickMood(
     return {
       mood: "excited",
       because: "You are buying on a rhythm like a person with a FINANCIAL PLAN. I am obsessed.",
+    };
+  }
+
+  // An open position outranks every holdings branch below. Without this,
+  // vitalik.eth came back a "proud" Stable Queen — "nothing silly" — while the
+  // scenario on the same card said gambling, because one reads positions and
+  // the other never did. Two parts of one card contradicting each other is
+  // worse than either being wrong alone.
+  const openPerps = positions?.perps ?? [];
+  const openBets = positions?.predictionMarkets ?? [];
+  if (openPerps.length > 0) {
+    const lev = Math.max(0, ...openPerps.map((p) => p.leverage ?? 0));
+    const venue = openPerps[0].venue;
+    return {
+      mood: "unhinged",
+      because: lev >= 5
+        ? `You are ${lev}x long on ${venue} RIGHT NOW. One wick and I am a raisin.`
+        : `You have ${openPerps.length === 1 ? "a position" : `${openPerps.length} positions`} open on ${venue}. I am watching it with both hands over my eyes.`,
+    };
+  }
+  if (openBets.length > 0) {
+    const staked_ = openBets.reduce((sum, b) => sum + (b.stakeUsd ?? 0), 0);
+    return {
+      mood: "suspicious",
+      because: staked_ > 0
+        ? `$${Math.round(staked_).toLocaleString()} riding on ${openBets[0].venue}. Tidy holdings do not cancel an open bet.`
+        : `You have money on ${openBets[0].venue}. Tidy holdings do not cancel an open bet.`,
     };
   }
 
@@ -360,52 +389,25 @@ export function buildPlan(
   // (deposit/withdraw), Jupiter (trade/earn) and Sunrise (trade). Read-only
   // plugins are never offered as a way to do something.
   //
-  // All three of those act on Solana. An Ethereum wallet used to be told to
-  // "move some SOL into liquid staking" through Jupiter, which is advice it
-  // cannot take about an asset it does not hold. The action still stands on
-  // any chain; the plugin only gets named where it can actually run.
-  const onSolana = (req.wallets ?? []).some((w) => w.chain === "solana");
-  const via = (plugin: string) => (onSolana ? { executeWith: plugin } : {});
-  const native = onSolana ? "SOL" : "ETH";
+  // Reading is multichain; execution is not, and that is deliberate. All three
+  // execution plugins are Solana, because the whole point is that the user can
+  // carry the plan out inside Claude through PayBox. So the plugin is always
+  // named, whatever chain the wallet was read on.
+  //
+  // What has to stay honest is the asset. An Ethereum wallet holding no SOL
+  // was being told to "move some SOL into liquid staking" — advice about
+  // something it does not have. The step now says where the money actually is
+  // and that it has to reach Solana first, rather than implying one click.
+  const onSolana = (req.wallets ?? []).some(
+    (w) => w.chain === "solana" && w.balances.length > 0,
+  );
+  const needsBridge = onSolana
+    ? ""
+    : " Everything you hold was read on Ethereum, Base or Polygon, so it has to reach Solana before this can run.";
 
-  if (stable !== null && stable > 0.4) {
-    steps.push({
-      action: "Put part of your idle stablecoins to work",
-      piggySays: "This cash is just sitting there looking pretty. Give it a job.",
-      ...via("Kamino Lending Vaults, via your agent's PayBox plugin"),
-      risk: "Lending carries smart-contract risk and the rate moves. This is not a savings account.",
-    });
-  }
-  if (staked !== null && staked < 0.2) {
-    steps.push({
-      action: `Move some ${native} into liquid staking`,
-      piggySays: `Staked ${native} still moves with ${native}. It just stops doing nothing.`,
-      ...via("Jupiter, via your agent's PayBox plugin"),
-      risk: `You keep full ${native} price exposure, and liquid-staking tokens can trade below ${native}.`,
-    });
-  }
-  // Only nag about concentration when the biggest holding is not a stablecoin:
-  // "spread out your single biggest position" is absurd advice when that
-  // position is USDC.
-  if (
-    stats.concentration.value !== null &&
-    stats.concentration.value > 0.5 &&
-    (stable ?? 0) < 0.5
-  ) {
-    steps.push({
-      action: "Spread out the single biggest position",
-      piggySays: "One token is carrying your whole personality. That is not a strategy, it is a crush.",
-      ...via("Jupiter or Sunrise, via your agent's PayBox plugin"),
-      risk: "Selling crystallises any loss, and the thing you sell may go up afterwards.",
-    });
-  }
-  if (longTail !== null && longTail > 0.4) {
-    steps.push({
-      action: "Cap the fun money",
-      piggySays: "I am not banning the dog coins. I am putting them on a leash.",
-      risk: "Capping does not recover what is already down.",
-    });
-  }
+  // The loudest thing first. A 25x position was landing third, under "put your
+  // stablecoins to work" — advice about tidying the kitchen while the stove is
+  // on. Open positions lead the plan; housekeeping follows.
   const perps = req.positions?.perps ?? [];
   if (perps.length > 0) {
     const maxLev = Math.max(0, ...perps.map((p) => p.leverage ?? 0));
@@ -420,6 +422,72 @@ export function buildPlan(
       action: "Cap prediction-market bets to fun money",
       piggySays: "Betting on the future is cute. Betting the rent on it is not.",
       risk: "Open bets can resolve to zero, and there is no partial credit for being nearly right.",
+    });
+  }
+
+  // Telling someone to put their stablecoins to work when they already have a
+  // lending position is Piggy not reading the room. Credit first, then nag.
+  const lending = (req.positions?.lending ?? []).filter((l) => (l.suppliedUsd ?? 0) > 0);
+  const supplied = lending.reduce((sum, l) => sum + (l.suppliedUsd ?? 0), 0);
+  if (stable !== null && stable > 0.4) {
+    steps.push(
+      lending.length > 0
+        ? {
+            action: `You already have ${supplied > 0 ? `$${Math.round(supplied).toLocaleString()} ` : ""}lent on ${lending[0].venue} — decide whether the rest joins it`,
+            piggySays: "Look at you, already earning. The rest is still sunbathing though.",
+            executeWith: "Kamino Lending Vaults, via your agent's PayBox plugin",
+            risk:
+              "Lending carries smart-contract risk and the rate moves. Adding more concentrates you in one venue." +
+              needsBridge,
+          }
+        : {
+            action: "Put part of your idle stablecoins to work",
+            piggySays: "This cash is just sitting there looking pretty. Give it a job.",
+            executeWith: "Kamino Lending Vaults, via your agent's PayBox plugin",
+            risk:
+              "Lending carries smart-contract risk and the rate moves. This is not a savings account." +
+              needsBridge,
+          },
+    );
+  }
+  // There has to be something to stake. This used to fire on a wallet holding
+  // nothing at all, because "0% staked" is technically under the threshold.
+  const hasMajors = (stats.majorShare.value ?? 0) > 0.05;
+  if (staked !== null && staked < 0.2 && hasMajors && (stats.totalUsd.value ?? 0) > 0) {
+    steps.push({
+      action: onSolana
+        ? "Move some SOL into liquid staking"
+        : "Put idle majors into liquid staking on Solana",
+      piggySays: onSolana
+        ? "Staked SOL still moves with SOL. It just stops doing nothing."
+        : "Your majors are sitting there doing nothing with great confidence. Staked, they still move with the market — they just stop loafing.",
+      executeWith: "Jupiter, via your agent's PayBox plugin",
+      risk:
+        "You keep full price exposure, and liquid-staking tokens can trade below the asset they represent." +
+        needsBridge,
+    });
+  }
+  // Only nag about concentration when the biggest holding is not a stablecoin:
+  // "spread out your single biggest position" is absurd advice when that
+  // position is USDC.
+  if (
+    stats.concentration.value !== null &&
+    stats.concentration.value > 0.5 &&
+    (stable ?? 0) < 0.5
+  ) {
+    steps.push({
+      action: "Spread out the single biggest position",
+      piggySays: "One token is carrying your whole personality. That is not a strategy, it is a crush.",
+      executeWith: "Jupiter or Sunrise, via your agent's PayBox plugin",
+      risk:
+        "Selling crystallises any loss, and the thing you sell may go up afterwards." + needsBridge,
+    });
+  }
+  if (longTail !== null && longTail > 0.4) {
+    steps.push({
+      action: "Cap the fun money",
+      piggySays: "I am not banning the dog coins. I am putting them on a leash.",
+      risk: "Capping does not recover what is already down.",
     });
   }
   if (perps.length === 0 && perpsHistory.length > 0) {
@@ -470,8 +538,17 @@ export function blindSpots(
   venuesChecked?: string[],
   /** Spam airdrops left out of the balances. */
   advertsIgnored?: number,
+  /** Tokens kept but carried unpriced because the quote was not credible. */
+  pricesRejected?: number,
 ): string[] {
   const out: string[] = [];
+  if (pricesRejected && pricesRejected > 0) {
+    // One seeded pool quoting a huge number for an unsellable token used to
+    // decide the band, the persona and the mood.
+    out.push(
+      `${pricesRejected} ${pricesRejected === 1 ? "token claimed a value" : "tokens claimed values"} far larger than everything else here combined. Anyone can quote a price for something nobody can sell, so I left ${pricesRejected === 1 ? "it" : "them"} out of the totals rather than call you rich on ${pricesRejected === 1 ? "it" : "them"}.`,
+    );
+  }
   if (advertsIgnored && advertsIgnored > 0) {
     // Explains why Piggy's token count is lower than a block explorer's, and
     // declines to repeat a phishing lure back at the person holding it.

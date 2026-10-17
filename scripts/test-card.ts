@@ -126,28 +126,45 @@ const wallet = (chain: "solana" | "evm", balances: Array<{ symbol: string; amoun
   wallets: [{ chain, address: chain === "solana" ? "SoLAddr" : "0xabc", balances }],
 });
 
-check("an EVM wallet is not told to stake SOL", () => {
-  // flexcopy.eth: all ETH, nothing staked. It used to be told to move SOL
-  // into liquid staking through Jupiter — an asset it does not hold, on a
-  // chain it is not on.
+check("an EVM wallet is not told to move SOL it does not hold", () => {
+  // flexcopy.eth: all ETH, nothing staked. It was told to "move some SOL into
+  // liquid staking" — an asset it does not have.
   const req = wallet("evm", [{ symbol: "ETH", amount: 0.018, usdValue: 43 }]);
   const steps = buildPlan(req, computeStats(req)).steps;
   const staking = steps.find((s) => s.action.includes("liquid staking"));
   assert.ok(staking, "a wallet with nothing staked still gets the suggestion");
-  assert.match(staking.action, /ETH/);
-  assert.doesNotMatch(JSON.stringify(steps), /SOL\b/, "nothing mentions SOL");
+  assert.doesNotMatch(staking.action, /move some SOL/i);
+  assert.doesNotMatch(staking.piggySays, /\bSOL\b/);
 });
 
-check("no Solana plugin is offered to an EVM wallet", () => {
-  // Kamino, Jupiter and Sunrise all act on Solana. Naming one for an Ethereum
-  // wallet is an instruction that cannot be carried out.
+check("an EVM wallet is still pointed at the PayBox plugins", () => {
+  // Reading is multichain, execution is Solana on purpose: the plan exists so
+  // the user can carry it out inside Claude through Kamino, Jupiter and
+  // Sunrise. Stripping the plugin out for EVM wallets removed the point.
   const req = wallet("evm", [
     { symbol: "USDC", amount: 900, usdValue: 900 },
     { symbol: "ETH", amount: 0.04, usdValue: 100 },
   ]);
   const steps = buildPlan(req, computeStats(req)).steps;
-  assert.doesNotMatch(JSON.stringify(steps), /Kamino|Jupiter|Sunrise/);
-  assert.ok(steps.every((s) => s.executeWith === undefined));
+  assert.match(JSON.stringify(steps), /Kamino/);
+  assert.ok(steps.some((s) => s.executeWith?.includes("PayBox plugin")));
+});
+
+check("an EVM wallet is told the money has to reach Solana first", () => {
+  // Naming a Solana plugin to a wallet with nothing on Solana is only honest
+  // if the step says so, rather than implying one click.
+  const req = wallet("evm", [{ symbol: "USDC", amount: 900, usdValue: 900 }]);
+  const steps = buildPlan(req, computeStats(req)).steps;
+  assert.ok(
+    steps.filter((s) => s.executeWith).every((s) => /reach Solana/.test(s.risk)),
+    "every executable step on an EVM wallet says the funds must reach Solana",
+  );
+});
+
+check("a Solana wallet is not told to bridge to the chain it is on", () => {
+  const req = wallet("solana", [{ symbol: "USDC", amount: 900, usdValue: 900 }]);
+  const steps = buildPlan(req, computeStats(req)).steps;
+  assert.doesNotMatch(JSON.stringify(steps), /reach Solana/);
 });
 
 check("a Solana wallet still gets its plugins", () => {
@@ -171,6 +188,73 @@ check("a mixed wallet keeps the Solana plugins it can use", () => {
   };
   const steps = buildPlan(req, computeStats(req)).steps;
   assert.match(JSON.stringify(steps), /Jupiter/);
+});
+
+console.log("\npickMood() — open positions outrank tidy holdings");
+
+const { pickMood, pickPersona } = await import("../lib/piggy.ts");
+
+const tidy = {
+  wallets: [
+    {
+      chain: "evm" as const,
+      address: "0xabc",
+      balances: [
+        { symbol: "USDC", amount: 800, usdValue: 800 },
+        { symbol: "STETH", amount: 0.1, usdValue: 200 },
+      ],
+    },
+  ],
+};
+
+check("a tidy wallet with an open bet is not told it is doing nothing silly", () => {
+  // vitalik.eth came back a "proud" Stable Queen — "nothing silly" — while the
+  // scenario on the same card said gambling.
+  const req = { ...tidy, positions: { predictionMarkets: [{ venue: "Polymarket", market: "x", stakeUsd: 500 }] } };
+  const stats = computeStats(req);
+  const mood = pickMood(stats, pickPersona(req, stats), undefined, [], req.positions);
+  assert.notEqual(mood.mood, "proud");
+  assert.match(mood.because, /Polymarket/);
+  assert.doesNotMatch(mood.because, /nothing silly/);
+});
+
+check("an open 25x position makes Piggy unhinged, whatever the holdings say", () => {
+  const req = { ...tidy, positions: { perps: [{ venue: "Hyperliquid", symbol: "ETH", notionalUsd: 3675, leverage: 25 }] } };
+  const stats = computeStats(req);
+  const mood = pickMood(stats, pickPersona(req, stats), undefined, [], req.positions);
+  assert.equal(mood.mood, "unhinged");
+  assert.match(mood.because, /25x/);
+});
+
+check("a tidy wallet with nothing open is still allowed to be praised", () => {
+  // The guard against over-correcting: no positions, no accusation.
+  const stats = computeStats(tidy);
+  const mood = pickMood(stats, pickPersona(tidy, stats), undefined, []);
+  assert.equal(mood.mood, "proud");
+});
+
+console.log("\nbuildPlan() — urgency and existing positions");
+
+check("leverage leads the plan, not housekeeping", () => {
+  const req = { ...tidy, positions: { perps: [{ venue: "Hyperliquid", symbol: "ETH", notionalUsd: 3675, leverage: 25 }] } };
+  const steps = buildPlan(req, computeStats(req)).steps;
+  assert.match(steps[0].action, /leverage/i);
+  assert.match(steps[0].action, /25x/);
+});
+
+check("an existing lending position is acknowledged, not nagged over", () => {
+  const req = { ...tidy, positions: { lending: [{ venue: "Kamino", asset: "USDC", suppliedUsd: 1200 }] } };
+  const steps = buildPlan(req, computeStats(req)).steps;
+  const step = steps.find((s) => /Kamino/.test(s.executeWith ?? ""));
+  assert.ok(step);
+  assert.match(step.action, /already have/);
+  assert.doesNotMatch(step.action, /idle stablecoins/);
+});
+
+check("an empty wallet is not told to stake what it does not have", () => {
+  const empty = { wallets: [{ chain: "evm" as const, address: "0xabc", balances: [] }] };
+  const steps = buildPlan(empty, computeStats(empty)).steps;
+  assert.doesNotMatch(JSON.stringify(steps), /liquid staking/);
 });
 
 if (failures > 0) {

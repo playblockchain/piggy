@@ -54,7 +54,7 @@ export function CardView({
   stored?: boolean;
   imageHref?: string;
 }) {
-  const { persona, mood, stats, cohort, asOf, band, scenario } = card;
+  const { persona, mood, stats, cohort, asOf, band, scenario, firstStep, exposureUsd } = card;
   const slices = composition(stats);
   const dated = new Date(asOf);
   const datedLabel = Number.isNaN(dated.getTime())
@@ -96,7 +96,21 @@ export function CardView({
               : "No USD prices could be found for this wallet, so shares are unavailable."}
           </p>
         )}
+        {typeof exposureUsd === "number" && exposureUsd > 0 && (
+          <p className={styles.exposure}>
+            <strong>${Math.round(exposureUsd).toLocaleString()}</strong> riding on open positions.
+            That is notional and stake, not a holding, so it is not in the shares above.
+          </p>
+        )}
       </section>
+
+      {firstStep && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Do this first</h2>
+          <p className={styles.step}>{firstStep.action}</p>
+          <p className={styles.note}>{firstStep.piggySays}</p>
+        </section>
+      )}
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Wallets like yours</h2>

@@ -39,8 +39,9 @@ One pun per screen, in a title bar. Everything functional stays plain.
 
 | Route | What it does | Paid |
 |---|---|---|
-| `POST /api/analyze` | Snapshot in, personality + mood + plan + card link out | yes, x402 |
-| `GET /card/[token]` | The shareable card. Entirely encoded in its own URL | no |
+| `POST /api/analyze` | Addresses (or balances) in, personality + mood + plan + card link out | yes, x402 |
+| `GET /c/[id]` | The shareable card, behind a short link. Stores only what the card shows | no |
+| `GET /card/[token]` | The same card encoded entirely in its own URL. Kept so no old link dies | no |
 | `GET /` | What Piggy is and how an agent calls it | no |
 
 ## Running it
@@ -63,15 +64,22 @@ Piggy asserts things about someone's money, so a wrong number is worse than no n
   reported as unavailable rather than computed from token counts.
 - **Cohorts ship empty.** `data/cohorts.json` contains no numbers. Until it is filled from
   real queries, the card says so.
-- **Blind spots are shown, not hidden.** PayBox returns balances, not history, so Piggy says
-  plainly that it cannot see deposits, streaks or past trades.
+- **Blind spots are shown, not hidden.** Every chain or venue Piggy could not read is named on
+  the card, and checked-and-empty is reported differently from unknown.
+- **A quoted price is not a price.** Airdropped tokens whose symbol is an advert are dropped, and
+  a token claiming more than twenty times the rest of the wallet is carried unvalued — one seeded
+  pool must not decide somebody's band, persona and mood.
+- **A bad address is an error, not a card.** An address that cannot be read returns 400, so a typo
+  never settles a payment.
 - **Plans are education, never advice**, and every step names its risk.
 
 ## Transaction history
 
 PayBox returns balances, not history — but it hands over the wallet *address*, and everything
-that address has ever done is public. So habits over time come from an indexer
-(`lib/history.ts`, currently Helius), read with the address PayBox supplies.
+that address has ever done is public. So habits over time come from indexers: Solana through
+Helius (`lib/history.ts`) and Ethereum, Base and Polygon through Alchemy (`lib/evm-history.ts`).
+
+Reading is multichain; execution is not, and that is deliberate — see the plugins above.
 
 This unlocks the two habits a snapshot can never show: **DCA/saving** and **raiding savings**.
 
@@ -168,6 +176,7 @@ and very noisy on long-tail tokens.
 - `data/cohorts.json` is empty; the queries have not been run.
 - The artwork is a vector stand-in. Drop real files into `public/piggy/` named after the mood
   (`proud.png`, `sad.webp`, …) and each one takes over automatically — see that folder's README.
-- No real PayBox call has been made end to end yet.
+- EVM history is read but only its perps venues reach the verdict; the funding signal computed in
+  `deriveEvmHabits` does not yet feed persona, mood or scenario.
 - The live Helius request in `fetchHistory` has never run against the real API — only its
   pure transform is tested. The first call with a real key is the thing to watch.

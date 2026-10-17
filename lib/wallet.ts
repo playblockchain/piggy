@@ -28,6 +28,8 @@ export interface WalletFetch {
   message?: string;
   /** Airdropped adverts left out of `balances` — reported, never silent. */
   advertsIgnored?: number;
+  /** Tokens kept but carried unpriced because the quote was not credible. */
+  pricesRejected?: number;
 }
 
 /**
@@ -40,10 +42,14 @@ export interface WalletFetch {
  * overstates what someone holds, and printing them repeats a phishing lure
  * back to the person being phished.
  *
- * Only unpriced tokens are tested: if a market prices it, it is real enough to
- * report whatever it is called. An odd ticker survives too — the test is
- * whether the symbol is advertising, not whether we recognise it. So DRAW,
- * CHICKENMATE and yukinoki stay, as honestly unpriced long-tail dust.
+ * This used to apply only to unpriced tokens, on the reasoning that a market
+ * price made a token real enough to report. It does not: anyone can seed a
+ * pool and quote a price for a token nobody can sell. A symbol that is a sales
+ * pitch is an advert whatever price is attached to it.
+ *
+ * An odd ticker still survives — the test is whether the symbol is
+ * advertising, not whether we recognise it. DRAW, CHICKENMATE and yukinoki
+ * stay, as honestly unpriced long-tail dust.
  */
 const ADVERT =
   /https?:|www\.|t\.me|\.(?:com|xyz|io|net|org|app|me|link|site|pro|vip|top|fi|so|finance)\b|claim|airdrop|redeem|voucher|reward|visit /i;
@@ -62,8 +68,50 @@ function dropAdverts(balances: FetchedBalance[]): {
   balances: FetchedBalance[];
   advertsIgnored: number;
 } {
-  const kept = balances.filter((b) => b.usdValue !== undefined || !looksLikeAdvert(b.symbol));
+  const kept = balances.filter((b) => !looksLikeAdvert(b.symbol));
   return { balances: kept, advertsIgnored: balances.length - kept.length };
+}
+
+/** The assets whose price can be taken at face value. */
+const TRUSTED = new Set([
+  "USDC", "USDT", "PYUSD", "USDS", "DAI", "FDUSD", "USDE",
+  "JUPSOL", "JITOSOL", "MSOL", "BSOL", "STETH", "WSTETH", "RETH",
+  "SOL", "ETH", "WETH", "BTC", "WBTC", "CBBTC", "MATIC", "POL",
+]);
+
+/**
+ * A price nobody could sell at is not a price.
+ *
+ * An unsellable airdrop quoted at $1.16M turned a normal wallet into an
+ * "unhinged whale" — one manipulated pool deciding the band, the persona and
+ * the mood. Anyone can seed a pool; the quote means nothing until someone
+ * exits at it.
+ *
+ * So when a single unrecognised token claims to be worth more than twenty
+ * times everything else in the wallet combined, its price is dropped and the
+ * token is carried as unpriced. The token is NOT removed — it is really
+ * there, and Piggy reports it as something it could not value rather than
+ * deleting a holding or repeating a number it does not believe.
+ */
+function rejectImplausiblePrices(balances: FetchedBalance[]): {
+  balances: FetchedBalance[];
+  pricesRejected: number;
+} {
+  let pricesRejected = 0;
+  const out = balances.map((b) => {
+    const value = b.usdValue;
+    if (value === undefined || TRUSTED.has(b.symbol.toUpperCase())) return b;
+    const others = balances
+      .filter((o) => o !== b && typeof o.usdValue === "number")
+      .reduce((sum, o) => sum + (o.usdValue ?? 0), 0);
+    // A lone token in an otherwise unpriced wallet has nothing to be measured
+    // against, so the rule needs something real to compare with.
+    if (others <= 0 || value <= others * 20) return b;
+    pricesRejected += 1;
+    const { usdValue: _dropped, ...rest } = b;
+    return rest;
+  });
+  return { balances: out, pricesRejected };
 }
 
 /** The assets that change a verdict. Everything else is long-tail on purpose. */
@@ -126,6 +174,46 @@ async function priceSolanaMints(mints: string[]): Promise<Record<string, number>
   return out;
 }
 
+/**
+ * Real symbols for mints we do not hardcode.
+ *
+ * Without this, anything outside the handful of mints below showed as the
+ * first six characters of its address — BONK read as "DezXAZ", which looks
+ * like Piggy failed rather than like a token. Names come from Helius's asset
+ * metadata, the same place a wallet UI gets them.
+ *
+ * Failure here is cosmetic and must never cost the read, so anything that
+ * goes wrong leaves the short mint in place.
+ */
+async function nameSolanaMints(key: string | undefined, mints: string[]): Promise<Record<string, string>> {
+  if (!key || mints.length === 0) return {};
+  try {
+    const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getAssetBatch",
+        params: { ids: mints.slice(0, 1000) },
+      }),
+    });
+    if (!res.ok) return {};
+    const body = (await res.json()) as {
+      result?: Array<{ id?: string; content?: { metadata?: { symbol?: string; name?: string } } }>;
+    };
+    const out: Record<string, string> = {};
+    for (const asset of body.result ?? []) {
+      const meta = asset?.content?.metadata;
+      const symbol = (meta?.symbol || meta?.name || "").trim();
+      if (asset?.id && symbol) out[asset.id] = symbol;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
   const key = process.env.HELIUS_API_KEY;
   const url = key
@@ -159,13 +247,17 @@ export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
       return { ok: true, chain: "solana", address, balances: [] };
     }
 
-    const prices = await priceSolanaMints(raw.map((r) => r.mint));
+    const unknown = raw.filter((r) => !SOLANA_MINTS[r.mint]).map((r) => r.mint);
+    const [prices, names] = await Promise.all([
+      priceSolanaMints(raw.map((r) => r.mint)),
+      nameSolanaMints(key, unknown),
+    ]);
     const balances: FetchedBalance[] = raw.map((r) => {
       const price = prices[r.mint];
       return {
-        // An unrecognised mint keeps its address as the symbol, which the
-        // scoring treats as long-tail — the honest default.
-        symbol: SOLANA_MINTS[r.mint] ?? r.mint.slice(0, 6),
+        // A mint with no name anywhere keeps its address, which the scoring
+        // treats as long-tail — the honest default for "I do not know this".
+        symbol: SOLANA_MINTS[r.mint] ?? names[r.mint] ?? r.mint.slice(0, 6),
         assetId: r.mint,
         amount: r.amount,
         ...(typeof price === "number" ? { usdValue: r.amount * price } : {}),
@@ -175,12 +267,14 @@ export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
     // Dust below a cent is noise, and it drags the long-tail share around.
     const meaningful = balances.filter((b) => (b.usdValue ?? 0) >= 0.01 || b.usdValue === undefined);
     const cleaned = dropAdverts(meaningful);
+    const checked = rejectImplausiblePrices(cleaned.balances);
     return {
       ok: true,
       chain: "solana",
       address,
-      balances: cleaned.balances,
+      balances: checked.balances,
       ...(cleaned.advertsIgnored ? { advertsIgnored: cleaned.advertsIgnored } : {}),
+      ...(checked.pricesRejected ? { pricesRejected: checked.pricesRejected } : {}),
     };
   } catch (err) {
     return {
@@ -261,12 +355,14 @@ async function fetchEvmPortfolio(address: string, key: string): Promise<WalletFe
   }
 
   const cleaned = dropAdverts(balances);
+  const checked = rejectImplausiblePrices(cleaned.balances);
   return {
     ok: true,
     chain: "evm",
     address,
-    balances: cleaned.balances,
+    balances: checked.balances,
     ...(cleaned.advertsIgnored ? { advertsIgnored: cleaned.advertsIgnored } : {}),
+    ...(checked.pricesRejected ? { pricesRejected: checked.pricesRejected } : {}),
   };
 }
 
