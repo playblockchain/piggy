@@ -12,7 +12,7 @@ const MOOD_TOKEN: Record<Mood, string> = {
 };
 
 export const metadata: Metadata = {
-  title: "Piggy",
+  title: "Lil Piggy",
   description: "A money personality card, read from a wallet snapshot.",
 };
 
@@ -107,7 +107,7 @@ export default async function CardPage({ params }: { params: Promise<{ token: st
         </footer>
       </article>
 
-      <p className={styles.tagline}>make your piggy proud</p>
+      <p className={styles.tagline}>Lil Piggy — we make wealth management easy</p>
     </main>
   );
 }

@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Piggy",
+  title: "Lil Piggy",
   description:
-    "A wealth manager who lives in your agent. Piggy reads a wallet snapshot and hands back a money personality, a mood and a plan.",
+    "We make wealth management easy. Lil Piggy reads a wallet snapshot and hands back a money personality, a mood and a plan your agent can carry out.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

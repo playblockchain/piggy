@@ -6,12 +6,12 @@ export default function Home() {
     <main className={styles.page}>
       <header className={styles.hero}>
         <Piggy mood="proud" size={120} />
-        <h1 className={styles.title}>Piggy</h1>
+        <h1 className={styles.title}>Lil Piggy</h1>
+        <p className={styles.tagline}>We make wealth management easy.</p>
         <p className={styles.lede}>
-          A wealth manager who lives in your agent. Piggy reads a wallet snapshot, tells you what
-          kind of investor it makes you, and hands back a plan your agent can carry out.
+          A wealth manager who lives in your agent. Lil Piggy reads a wallet snapshot, tells you
+          what kind of investor it makes you, and hands back a plan your agent can carry out.
         </p>
-        <p className={styles.tagline}>make your piggy proud</p>
       </header>
 
       <section className={styles.section}>
