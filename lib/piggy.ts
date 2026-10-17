@@ -170,33 +170,62 @@ export function pickMood(
   // Habits read from history outrank anything a snapshot can show: what you
   // keep doing says more than what you happen to hold today.
   if (habits?.raidingSavings.detected) {
-    return { mood: "sad", because: "You keep taking money back out of your savings." };
+    return {
+      mood: "sad",
+      because: "You keep going back into your own savings. I saw. I write everything down.",
+    };
   }
   if (habits?.dca.detected && (longTail === null || longTail < 0.5)) {
-    return { mood: "excited", because: "You are buying on a rhythm and I am obsessed with you." };
+    return {
+      mood: "excited",
+      because: "You are buying on a rhythm like a person with a FINANCIAL PLAN. I am obsessed.",
+    };
   }
 
-  // Curious is the honest face for "I cannot read this yet" — better than
-  // picking a feeling about data Piggy does not have.
+  // Piggy is never neutral — every reading either shames or gushes. The feeling
+  // goes here, in his voice; the numbers and the risks stay plain everywhere
+  // else. Dramatic, never cruel: sad Piggy is funny, not humiliating, and is
+  // always one good move from recovery.
   if (longTail === null) {
-    return { mood: "curious", because: "I cannot see enough to have a feeling about this yet." };
+    return {
+      mood: "curious",
+      because: "I cannot see enough to have a feeling and the not-knowing is EATING me.",
+    };
   }
   if (persona.id === "shrimp-gambler" || (longTail > 0.7 && concentration > 0.6)) {
-    return { mood: "unhinged", because: "Nearly everything you own is one risky bet." };
+    return {
+      mood: "unhinged",
+      because: "Nearly everything you own is one bet. One. I have aged years reading this.",
+    };
   }
   if (longTail > 0.5) {
-    return { mood: "sad", because: "More than half of this is dog coins, babe." };
+    return {
+      mood: "sad",
+      because: "More than half of this is dog coins, babe. I am lying down about it.",
+    };
   }
   if (staked + stable > 0.7 && longTail < 0.1) {
-    return { mood: "proud", because: "Almost all of your money is somewhere it can actually work." };
+    return {
+      mood: "proud",
+      because: "Almost every coin working, nothing silly. This is the most attractive thing I have seen.",
+    };
   }
   if (staked > 0.3) {
-    return { mood: "excited", because: "You are staking properly and I am not normal about it." };
+    return {
+      mood: "excited",
+      because: "You are staking properly and I am NOT normal about it. Look at you.",
+    };
   }
   if (staked + stable > 0.5) {
-    return { mood: "happy", because: "Most of your money is somewhere it can actually work." };
+    return {
+      mood: "happy",
+      because: "Most of your money is working. I could cry. I will not. But I could.",
+    };
   }
-  return { mood: "suspicious", because: "Mixed. I am watching you." };
+  return {
+    mood: "suspicious",
+    because: "This could go either way and we both know which way you are leaning.",
+  };
 }
 
 /**

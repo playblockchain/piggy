@@ -52,32 +52,13 @@ export default function Home() {
               <h1 className={styles.title}>Lil Piggy</h1>
               <p className={styles.tagline}>Little pig, big feelings</p>
               <p className={styles.lede}>
-                Most people with small money have no wealth manager. You have me. Show me your wallet
-                and I will tell you exactly what kind of investor you are — then help you become a
-                better one.
+                You do not have a wealth manager. You have me: a tiny, emotionally unstable diva
+                whose entire personality depends on your financial decisions. Show me your wallet.
+                I will profile you, read your onchain behaviour, and either shame you or lose my
+                mind with pride.
               </p>
             </div>
           </div>
-        </Window>
-
-        <Window title="What I do" tone="blue">
-          <ol className={styles.steps}>
-            <li className={styles.step}>
-              <span className={styles.stepTitle}>I profile you</span>
-              Not a quiz. I look at what you actually hold and give you a money personality you will
-              either love or deny loudly.
-            </li>
-            <li className={styles.step}>
-              <span className={styles.stepTitle}>I read your onchain behaviour</span>
-              What you staked, what you left idle, what you gambled, whether you buy on a rhythm or
-              keep raiding your own savings.
-            </li>
-            <li className={styles.step}>
-              <span className={styles.stepTitle}>I make you a plan</span>
-              Sized to what you can actually afford, in my voice, with every risk named out loud.
-              Your agent carries it out. I never touch your money.
-            </li>
-          </ol>
         </Window>
 
         <Window title="How it is used" tone="peach">

@@ -96,9 +96,20 @@ grouped by **funding signature** — how money arrives — and then outcomes are
 wallet in the group. Selecting on funding rather than on returns is what stops it being a
 survivors' highlight reel.
 
-`queries/` holds the SQL. Both files carry a verification header: the table and mint constants
-were written from memory and must be checked against Dune's live catalog before the results are
-used. Run them, sanity-check a few wallets by hand, then paste results into `data/cohorts.json`.
+`queries/cohorts.sql` is one self-contained query. Paste it into Dune, run it, export the CSV,
+then:
+
+```bash
+npm run import:cohorts -- ~/Downloads/results.csv
+```
+
+That writes `data/cohorts.json` and turns "wallets like yours" on. The importer refuses bad
+input — missing columns, shares outside 0–1, cohorts under 30 wallets — and leaves the file
+alone rather than writing something plausible-looking. An empty cohorts file is a fine outcome;
+Piggy just says "not available".
+
+The query's table and column names were checked against Dune's docs; the USDC mint constant was
+not, and the header says so.
 
 Outcomes are measured as **survival** (did money remain), not returns. Real P&L needs historical
 prices per token per timestamp and a way to separate deposits from gains — a much bigger job,

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "test:history": "node --experimental-strip-types scripts/test-history.ts",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "import:cohorts": "node --experimental-strip-types scripts/import-cohorts.ts"
   },
   "dependencies": {
     "@x402/core": "^2.28.0",
