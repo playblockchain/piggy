@@ -1,0 +1,8 @@
+{
+  "$comment": "Cohort cache for Piggy. UNPOPULATED ON PURPOSE. Fill this by running queries/ against Dune with your own account and pasting the results here. Piggy reports cohorts as unavailable while this is empty — it must never show numbers that were not measured.",
+  "schemaVersion": 1,
+  "asOf": null,
+  "source": null,
+  "method": "Wallets are grouped by funding signature (how money arrives), then outcomes are reported for every wallet in the group, not only the ones that did well.",
+  "cohorts": []
+}

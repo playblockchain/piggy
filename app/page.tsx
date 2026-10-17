@@ -1,69 +1,70 @@
-import Image from "next/image";
+import { Piggy } from "./piggy";
 import styles from "./page.module.css";
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className={styles.page}>
+      <header className={styles.hero}>
+        <Piggy mood="proud" size={120} />
+        <h1 className={styles.title}>Piggy</h1>
+        <p className={styles.lede}>
+          A wealth manager who lives in your agent. Piggy reads a wallet snapshot, tells you what
+          kind of investor it makes you, and hands back a plan your agent can carry out.
+        </p>
+        <p className={styles.tagline}>make your piggy proud</p>
+      </header>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>How it is used</h2>
+        <p className={styles.body}>
+          Piggy is a paid service an AI agent calls, not an app you open. Your agent fetches your
+          balances through PayBox, pays Piggy a couple of cents over x402, and gets back a
+          personality, a mood, a plan and a link to a card page like the one it generates for you.
+          If you decide to act, your agent executes through PayBox — Piggy never holds your funds
+          and never signs anything.
+        </p>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Calling it</h2>
+        <pre className={styles.code}>
+          <code>{`POST /api/analyze
+Content-Type: application/json
+
+{
+  "wallets": [
+    {
+      "chain": "solana",
+      "address": "<address>",
+      "balances": [
+        { "symbol": "USDC", "amount": 120, "usdValue": 120 },
+        { "symbol": "JUPSOL", "amount": 1.4, "usdValue": 210 }
+      ]
+    }
+  ],
+  "selfReported": { "incomeRegularity": "irregular" }
+}`}</code>
+        </pre>
+        <p className={styles.note}>
+          Positions from enabled PayBox plugins — lending, perps, prediction markets — can be passed
+          alongside the balances, and Piggy will use them. Anything not supplied is reported as
+          unknown rather than guessed.
+        </p>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>What Piggy cannot see</h2>
+        <p className={styles.body}>
+          PayBox returns current balances, not transaction history. So Piggy reads what you hold
+          today, plus whatever you choose to tell it. It does not infer your past trades, and it
+          does not claim to.
+        </p>
+      </section>
+
+      <footer className={styles.footer}>
+        Piggy is education, not financial advice. Yields are not guaranteed and lending and staking
+        can lose money.
+      </footer>
+    </main>
   );
 }

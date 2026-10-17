@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Piggy
 
-## Getting Started
+A wealth manager who lives in your agent. Piggy reads a wallet snapshot, says what kind of
+investor it makes you, and hands back a plan your agent can carry out.
 
-First, run the development server:
+Built for the MoonPay PayBox Hackathon, Chapter 1.
+
+## What this is
+
+An x402-paid HTTP service, not an app. An agent with PayBox connected fetches the user's
+balances, pays Piggy a couple of cents per call, and gets back a personality, a mood, a plan
+and a link to a shareable card page. If the user decides to act, **the agent** executes
+through PayBox. Piggy never holds funds, never signs, and stores nothing.
+
+## Endpoints
+
+| Route | What it does | Paid |
+|---|---|---|
+| `POST /api/analyze` | Snapshot in, personality + mood + plan + card link out | yes, x402 |
+| `GET /card/[token]` | The shareable card. Entirely encoded in its own URL | no |
+| `GET /` | What Piggy is and how an agent calls it | no |
+
+## Running it
 
 ```bash
+npm install
+cp .env.example .env.local   # X402_PAY_TO can stay empty while developing
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+With `X402_PAY_TO` unset the analyze endpoint runs free, so you can develop without a wallet.
+Set it to charge.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## The honesty rules this code follows
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Piggy asserts things about someone's money, so a wrong number is worse than no number:
 
-## Learn More
+- **Every figure carries a basis** — `observed`, `inferred`, `self-reported` or `unknown`.
+- **No prices, no shares.** If the caller sends balances without USD values, shares are
+  reported as unavailable rather than computed from token counts.
+- **Cohorts ship empty.** `data/cohorts.json` contains no numbers. Until it is filled from
+  real queries, the card says so.
+- **Blind spots are shown, not hidden.** PayBox returns balances, not history, so Piggy says
+  plainly that it cannot see deposits, streaks or past trades.
+- **Plans are education, never advice**, and every step names its risk.
 
-To learn more about Next.js, take a look at the following resources:
+## Cohorts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The differentiated part of Piggy is comparing a user to wallets funded like them. Cohorts are
+grouped by **funding signature** — how money arrives — and then outcomes are reported for every
+wallet in the group. Selecting on funding rather than on returns is what stops it being a
+survivors' highlight reel.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`queries/` holds the SQL. Both files carry a verification header: the table and mint constants
+were written from memory and must be checked against Dune's live catalog before the results are
+used. Run them, sanity-check a few wallets by hand, then paste results into `data/cohorts.json`.
 
-## Deploy on Vercel
+Outcomes are measured as **survival** (did money remain), not returns. Real P&L needs historical
+prices per token per timestamp and a way to separate deposits from gains — a much bigger job,
+and very noisy on long-tail tokens.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Not yet done
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `data/cohorts.json` is empty; the queries have not been run.
+- The artwork in `app/piggy.tsx` is a geometric placeholder, meant to be replaced.
+- No real PayBox call has been made end to end yet.
