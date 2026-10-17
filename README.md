@@ -107,7 +107,8 @@ and very noisy on long-tail tokens.
 ## Not yet done
 
 - `data/cohorts.json` is empty; the queries have not been run.
-- The artwork in `app/piggy.tsx` is a vector stand-in for the real illustrations.
+- The artwork is a vector stand-in. Drop real files into `public/piggy/` named after the mood
+  (`proud.png`, `sad.webp`, …) and each one takes over automatically — see that folder's README.
 - No real PayBox call has been made end to end yet.
 - The live Helius request in `fetchHistory` has never run against the real API — only its
   pure transform is tested. The first call with a real key is the thing to watch.

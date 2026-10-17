@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Mood } from "@/lib/types";
 
 /**
@@ -123,7 +125,7 @@ function Prop({ mood }: { mood: Mood }) {
   }
 }
 
-export function Piggy({ mood, size = 160 }: { mood: Mood; size?: number }) {
+function PiggyVector({ mood, size = 160 }: { mood: Mood; size?: number }) {
   const ink = "var(--ink)";
   // Piggy shrinks as the habits get worse — the brand sheet's whole premise.
   const scale =
@@ -188,5 +190,48 @@ export function Piggy({ mood, size = 160 }: { mood: Mood; size?: number }) {
         ) : null}
       </g>
     </svg>
+  );
+}
+
+/**
+ * Drop real illustrations into `public/piggy/` named after the mood —
+ * `proud.png`, `sad.webp`, `unhinged.svg` and so on — and each one replaces
+ * its vector stand-in as soon as it lands. Moods with no file keep the vector,
+ * so the set can arrive one file at a time without ever showing a broken image.
+ *
+ * The lookup runs on the server at render time, which is why this component
+ * must stay a server component.
+ */
+const ASSET_DIR = path.join(process.cwd(), "public", "piggy");
+const EXTENSIONS = [".png", ".webp", ".svg", ".jpg", ".jpeg", ".gif"];
+
+function findAsset(mood: Mood): string | null {
+  for (const ext of EXTENSIONS) {
+    const file = `${mood}${ext}`;
+    try {
+      if (fs.existsSync(path.join(ASSET_DIR, file))) return `/piggy/${file}`;
+    } catch {
+      // A filesystem that cannot be read is the same as no asset: use the vector.
+      return null;
+    }
+  }
+  return null;
+}
+
+const LABEL_FOR: Record<Mood, string> = LABEL;
+
+export function Piggy({ mood, size = 160 }: { mood: Mood; size?: number }) {
+  const src = findAsset(mood);
+  if (!src) return <PiggyVector mood={mood} size={size} />;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      width={size}
+      height={size}
+      alt={`Lil Piggy looking ${LABEL_FOR[mood]}`}
+      style={{ display: "block", width: size, height: "auto" }}
+    />
   );
 }
