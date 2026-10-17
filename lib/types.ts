@@ -181,4 +181,9 @@ export interface AnalyzeResponse {
   /** Which perps venues were asked, and what they said. */
   venuesChecked?: Array<{ venue: string; chain: string; ok: boolean; found: number; message?: string }>;
   cardUrl: string;
+  /**
+   * A direct PNG of the card. Agents cannot render a web page inline, so
+   * handing them only cardUrl meant the card arrived as a bare link.
+   */
+  cardImageUrl: string;
 }

@@ -201,6 +201,7 @@ const handler = async (request: NextRequest) => {
       positionsChecked.filter((v) => v.ok).map((v) => v.venue),
     ),
     cardUrl: `${origin}/card/${token}`,
+    cardImageUrl: `${origin}/card/${token}/opengraph-image`,
   };
 
   return NextResponse.json(response);
