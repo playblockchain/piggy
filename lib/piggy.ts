@@ -440,6 +440,13 @@ export function buildPlan(
 }
 
 /** What Piggy could not see. Shown to the user rather than quietly omitted. */
+/** Tokens held but not priced. They are invisible to every share below. */
+export function unpricedCount(req: AnalyzeRequest): number {
+  return (req.wallets ?? [])
+    .flatMap((w) => w.balances)
+    .filter((b) => typeof b.usdValue !== "number").length;
+}
+
 export function blindSpots(
   req: AnalyzeRequest,
   stats: Stats,
@@ -451,6 +458,16 @@ export function blindSpots(
   const out: string[] = [];
   if (stats.totalUsd.value === null) {
     out.push("No USD prices were supplied, so every share below is unavailable.");
+  }
+  const unpriced = unpricedCount(req);
+  if (unpriced > 0) {
+    // Shares are computed only over priced assets. Without saying so, a wallet
+    // holding sixty unpriceable tokens and some ETH reads as "all majors".
+    out.push(
+      `${unpriced} ${unpriced === 1 ? "token has" : "tokens have"} no price I could find, so ${
+        unpriced === 1 ? "it is" : "they are"
+      } not counted in any share above. Most of those are usually worthless, but I will not claim that without a number.`,
+    );
   }
   if (infrastructure) {
     // Say why no habits were narrated, rather than silently reporting none.

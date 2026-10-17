@@ -14,6 +14,7 @@ import {
 import { deriveHabits, fetchHistory } from "@/lib/history";
 import { deriveEvmHabits, fetchEvmHistory } from "@/lib/evm-history";
 import { fetchPositions } from "@/lib/positions";
+import { isEnsName, resolveEns } from "@/lib/ens";
 import { fetchWallet } from "@/lib/wallet";
 import { analyzeRouteConfig, PAY_TO, resourceServer } from "@/lib/x402";
 import type { AnalyzeRequest, AnalyzeResponse } from "@/lib/types";
@@ -66,7 +67,13 @@ const handler = async (request: NextRequest) => {
   // the caller typed.
   const resolved: AnalyzeResponse["resolved"] = [];
   if (req.addresses?.length) {
-    const fetched = await Promise.all(req.addresses.slice(0, 5).map((a) => fetchWallet(a)));
+    // People paste names. Resolve them before anything else looks at them.
+    const inputs = req.addresses.slice(0, 5);
+    const addresses = await Promise.all(
+      inputs.map(async (a) => (isEnsName(a) ? ((await resolveEns(a)) ?? a) : a)),
+    );
+    req = { ...req, addresses };
+    const fetched = await Promise.all(addresses.map((a) => fetchWallet(a)));
     for (const f of fetched) {
       resolved.push({
         address: f.address,

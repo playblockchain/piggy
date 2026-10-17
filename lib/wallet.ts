@@ -148,7 +148,85 @@ export async function fetchSolanaWallet(address: string): Promise<WalletFetch> {
   }
 }
 
+/** Native asset per network, since the portfolio API leaves its symbol null. */
+const NATIVE: Record<string, string> = {
+  "eth-mainnet": "ETH",
+  "base-mainnet": "ETH",
+  "matic-mainnet": "MATIC",
+  "polygon-mainnet": "MATIC",
+};
+
+/**
+ * All EVM holdings across Ethereum, Base and Polygon in one call, with
+ * metadata and prices.
+ *
+ * The first version read only USDC and ETH on Base, which meant an active
+ * Ethereum wallet came back as "Unreadable" with one token — the holdings
+ * were not wrong so much as barely looked at.
+ */
+async function fetchEvmPortfolio(address: string, key: string): Promise<WalletFetch> {
+  const res = await fetch(`https://api.g.alchemy.com/data/v1/${key}/assets/tokens/by-address`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      addresses: [{ address, networks: ["eth-mainnet", "base-mainnet", "polygon-mainnet"] }],
+      withMetadata: true,
+      withPrices: true,
+    }),
+  });
+  if (!res.ok) throw new Error(`portfolio returned ${res.status}`);
+
+  const body = (await res.json()) as {
+    data?: {
+      tokens?: Array<{
+        network?: string;
+        tokenAddress?: string | null;
+        tokenBalance?: string;
+        tokenMetadata?: { symbol?: string | null; decimals?: number | null };
+        tokenPrices?: Array<{ value?: string }>;
+      }>;
+    };
+  };
+
+  const balances: FetchedBalance[] = [];
+  for (const t of body.data?.tokens ?? []) {
+    const decimals = t.tokenMetadata?.decimals ?? 18;
+    const raw = t.tokenBalance ?? "0x0";
+    let amount = 0;
+    try {
+      amount = Number(BigInt(raw)) / 10 ** decimals;
+    } catch {
+      continue;
+    }
+    if (!(amount > 0)) continue;
+
+    const price = Number(t.tokenPrices?.[0]?.value);
+    const symbol =
+      t.tokenMetadata?.symbol ?? (t.tokenAddress ? t.tokenAddress.slice(0, 6) : NATIVE[t.network ?? ""] ?? "native");
+    const usdValue = Number.isFinite(price) ? amount * price : undefined;
+
+    // Dust distorts the long-tail share without telling anyone anything.
+    if (usdValue !== undefined && usdValue < 0.01) continue;
+    balances.push({
+      symbol,
+      assetId: t.tokenAddress ?? `native:${t.network}`,
+      amount,
+      ...(usdValue !== undefined ? { usdValue } : {}),
+    });
+  }
+
+  return { ok: true, chain: "evm", address, balances };
+}
+
 export async function fetchEvmWallet(address: string): Promise<WalletFetch> {
+  const key = process.env.ALCHEMY_API_KEY;
+  if (key) {
+    try {
+      return await fetchEvmPortfolio(address, key);
+    } catch {
+      // Fall through to the keyless Base read rather than returning nothing.
+    }
+  }
   const url = "https://mainnet.base.org";
   try {
     const padded = address.slice(2).toLowerCase().padStart(64, "0");
