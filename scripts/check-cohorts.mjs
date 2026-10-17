@@ -1,6 +1,9 @@
 /**
  * Guards data/cohorts.json.
  *
+ * Plain JavaScript on purpose: this runs as `prebuild`, so it must not depend
+ * on a Node type-stripping flag being available in whatever builds the app.
+ *
  * Cohort numbers are the one thing in this product a user could not check for
  * themselves, so they are the one thing that must never be invented. This runs
  * as `prebuild`, which means Vercel runs it too: a cohorts file that cannot
@@ -18,19 +21,15 @@ const MIN_WALLETS = 30;
 /** Words that mean "this did not come from a real measurement". */
 const FORBIDDEN_IN_SOURCE = ["fixture", "test", "sample", "example", "dummy", "placeholder"];
 
-const problems: string[] = [];
-const fail = (msg: string) => problems.push(msg);
+const problems = [];
+const fail = (msg) => problems.push(msg);
 
-let data: {
-  asOf?: unknown;
-  source?: unknown;
-  cohorts?: unknown;
-};
+let data;
 
 try {
   data = JSON.parse(fs.readFileSync(FILE, "utf8"));
 } catch (err) {
-  console.error(`check-cohorts: cannot read data/cohorts.json — ${(err as Error).message}`);
+  console.error(`check-cohorts: cannot read data/cohorts.json — ${err.message}`);
   process.exit(1);
 }
 
@@ -61,7 +60,7 @@ if (typeof source !== "string" || source.trim() === "") {
 }
 
 cohorts.forEach((raw, i) => {
-  const c = raw as Record<string, unknown>;
+  const c = raw;
   const where = `cohort ${i} (${String(c.id ?? "no id")})`;
 
   if (typeof c.id !== "string" || !c.id) fail(`${where}: missing id`);
@@ -80,7 +79,7 @@ cohorts.forEach((raw, i) => {
 
   let shareTotal = 0;
   outcomes.forEach((rawO, j) => {
-    const o = rawO as Record<string, unknown>;
+    const o = rawO;
     const at = `${where} outcome ${j}`;
     if (typeof o.behaviour !== "string" || !o.behaviour) fail(`${at}: missing behaviour`);
 
