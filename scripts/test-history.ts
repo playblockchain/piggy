@@ -209,6 +209,41 @@ check("barely any activity stays unknown", () => {
   assert.equal(deriveHabits(ME, [swap(0)]).walletKind.kind, "unknown");
 });
 
+check("dust deposits are not funding", () => {
+  // A wallet funded two cents at a time was reading as a saver. Crumbs under
+  // $1 are airdrop residue and change from contract calls, not a top-up.
+  const dust = [0, 7, 14, 21, 28, 35].map((d) => deposit(d, 0.02));
+  const h = deriveHabits(ME, dust);
+  assert.equal(h.funding.depositCount, 0);
+  assert.equal(h.funding.regularity, "unknown");
+});
+
+check("real deposits still count alongside dust", () => {
+  const mixed = [
+    ...[0, 7, 14, 21, 28, 35].map((d) => deposit(d, 0.02)),
+    ...[0, 30, 60, 90].map((d) => deposit(d, 250)),
+  ];
+  const h = deriveHabits(ME, mixed);
+  assert.equal(h.funding.depositCount, 4);
+  assert.equal(h.funding.regularity, "regular");
+});
+
+check("two deposits in a day and a third a month later is not a rhythm", () => {
+  // The relative bar alone passes this: mean gap 15, spread 15. It is one
+  // busy afternoon and then nothing, which is the opposite of a habit.
+  const h = deriveHabits(ME, [deposit(0, 200), deposit(0.02, 200), deposit(30, 200)]);
+  assert.equal(h.funding.regularity, "irregular");
+});
+
+check("frequent deposits are judged against their own cadence", () => {
+  // Gaps of a few hours have a tiny absolute spread, which the old ten-day
+  // bar waved through. Measured against the typical gap, a stream that varies
+  // by days while arriving hourly is not regular.
+  const times = [0, 0.04, 0.08, 0.12, 5, 5.04, 5.08, 12, 19, 26, 26.04, 33];
+  const h = deriveHabits(ME, times.map((d) => deposit(d, 50)));
+  assert.equal(h.funding.regularity, "irregular");
+});
+
 if (failures > 0) {
   console.error(`\n${failures} failing`);
   process.exit(1);

@@ -264,7 +264,9 @@ export function deriveEvmHabits(address: string, transfers: Transfer[], sinceDay
     meanGap > 0 &&
     spanDays >= MIN_SPAN_DAYS
   ) {
-    regularity = spread <= meanGap ? "regular" : "irregular";
+    // Both bars. The relative one alone passes two deposits in one day and a
+    // third a month later — mean 15, spread 15 — which is not a rhythm.
+    regularity = spread <= meanGap && spread <= 10 ? "regular" : "irregular";
   }
 
   const counts = new Map<string, { chain: EvmChain; n: number }>();

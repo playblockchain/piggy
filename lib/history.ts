@@ -195,6 +195,11 @@ const DAY = 86400;
 /** Deposits must span at least this long before cadence means anything. */
 const MIN_SPAN_DAYS = 21;
 /**
+ * Below this, an inbound USDC transfer is crumbs rather than a top-up.
+ * Counting dust let a wallet funded two cents at a time read as a saver.
+ */
+const MIN_DEPOSIT_USDC = 1;
+/**
  * Infrastructure thresholds. Deliberately NOT a speed limit: an agent running
  * someone's strategy can be fast and is still the audience.
  */
@@ -224,7 +229,7 @@ export function deriveHabits(address: string, txs: ParsedTx[]): HabitReading {
           tt.fromUserAccount !== address &&
           tt.mint === USDC_MINT &&
           typeof tt.tokenAmount === "number" &&
-          tt.tokenAmount > 0,
+          tt.tokenAmount >= MIN_DEPOSIT_USDC,
       ),
     )
     .map((t) => ({
@@ -252,9 +257,29 @@ export function deriveHabits(address: string, txs: ParsedTx[]): HabitReading {
    * called "regular" — the most regular saver imaginable, who is in fact a bot
    * having a busy minute. Evenly spaced is only meaningful across weeks.
    */
+  const meanGap =
+    gapsDays.length > 0 ? gapsDays.reduce((a, b) => a + b, 0) / gapsDays.length : null;
+
   let regularity: HabitReading["funding"]["regularity"] = "unknown";
-  if (inbound.length >= 3 && gapSpread !== null && depositSpanDays >= MIN_SPAN_DAYS) {
-    regularity = gapSpread <= 10 ? "regular" : "irregular";
+  if (
+    inbound.length >= 3 &&
+    gapSpread !== null &&
+    meanGap !== null &&
+    meanGap > 0 &&
+    depositSpanDays >= MIN_SPAN_DAYS
+  ) {
+    /**
+     * Two bars, because either alone lets something through.
+     *
+     * Ten days of variation is tight for monthly top-ups and meaningless for
+     * deposits landing hourly, so the spread is measured against the typical
+     * gap: the test is whether money arrives more evenly than chance.
+     *
+     * But the relative bar alone passes two deposits in one day and a third a
+     * month later — mean 15, spread 15 — so the absolute bar stays too. This
+     * is the same pair of faults the EVM reading had.
+     */
+    regularity = gapSpread <= meanGap && gapSpread <= 10 ? "regular" : "irregular";
   }
 
   // DCA: swaps spread evenly over time. Measured on cadence, not on intent.
