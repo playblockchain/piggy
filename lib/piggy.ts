@@ -198,7 +198,7 @@ export function pickMood(
   // Habits read from history outrank anything a snapshot can show: what you
   // keep doing says more than what you happen to hold today — unless the
   // wallet is running at machine pace, in which case there is no "you".
-  const h = habits && !habits.machineLike.detected ? habits : undefined;
+  const h = habits && habits.walletKind.kind !== "infrastructure" ? habits : undefined;
   if (h?.raidingSavings.detected) {
     return {
       mood: "sad",
@@ -282,7 +282,7 @@ export function pickScenario(
   // Habits over time first, since they are the harder-won signal. Each
   // `because` repeats what was actually counted rather than asserting intent.
   // Machine-pace wallets get no habit narration at all.
-  const h = habits && !habits.machineLike.detected ? habits : undefined;
+  const h = habits && habits.walletKind.kind !== "infrastructure" ? habits : undefined;
   if (h?.raidingSavings.detected) {
     return { scenario: "raiding_savings", because: h.raidingSavings.measured };
   }
@@ -381,16 +381,16 @@ export function blindSpots(
   req: AnalyzeRequest,
   stats: Stats,
   historyMessage?: string,
-  machineLike?: string,
+  infrastructure?: string,
 ): string[] {
   const out: string[] = [];
   if (stats.totalUsd.value === null) {
     out.push("No USD prices were supplied, so every share below is unavailable.");
   }
-  if (machineLike) {
+  if (infrastructure) {
     // Say why no habits were narrated, rather than silently reporting none.
     out.push(
-      `This wallet moves at machine pace, so I did not read habits from it: ${machineLike} Routers and bots do not have feelings, and I refuse to pretend otherwise.`,
+      `This is not somebody's wallet, so I did not read habits from it: ${infrastructure} I profile people and the agents working for them, not plumbing.`,
     );
   }
   if (historyMessage) {

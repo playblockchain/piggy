@@ -89,6 +89,27 @@ verified without a key:
 npm run test:history
 ```
 
+## Not every wallet is a person
+
+Piggy profiles **people and the agents working for them** — an agent running someone's DCA every
+day is the audience, not an impostor. What gets excluded is **infrastructure**: routers, market
+makers, vaults, hot wallets, where the money is nobody's savings.
+
+The giveaway is **flow shape, not speed**. Infrastructure passes money through, so what comes in
+goes straight back out and net movement is near zero against a huge gross. A person — or their
+agent — accumulates or spends, and the two sides don't cancel. Measured against a real router:
+156,222,724 moved in total, 0 stayed.
+
+Speed alone proves nothing, which is why it is not the test. An agent can be fast and still be
+exactly who Piggy is for.
+
+| Kind | What it means | Profiled? |
+|---|---|---|
+| `human` | Paced and spaced like someone deciding | yes |
+| `agent` | Clockwork timing or sustained pace, but it keeps what it receives | yes, and Piggy says so |
+| `infrastructure` | Money passes straight through, or absurd volume | no, and the card says why |
+| `unknown` | Too little activity to tell | no habits claimed |
+
 ## Two datasets, deliberately not blended
 
 | Query | Question | Who is in it |

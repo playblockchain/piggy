@@ -160,11 +160,22 @@ export interface HabitReading {
   dca: { detected: boolean; measured: string };
   raidingSavings: { detected: boolean; measured: string };
   /**
-   * Machine-rate activity. Routers, market makers and bots are not people with
-   * habits, and shaming one is both wrong and absurd — so when this is set,
-   * every habit above is ignored rather than narrated.
+   * What kind of wallet this is.
+   *
+   * Piggy profiles people AND the agents acting for them — an agent running
+   * someone's DCA every day is exactly the audience, and speed alone must not
+   * disqualify it. What must be excluded is infrastructure: routers, market
+   * makers, vaults and hot wallets, where the money is not anybody's savings.
+   *
+   * The giveaway is not velocity, it is FLOW SHAPE. Infrastructure passes
+   * money through — what comes in goes straight back out, so net movement is
+   * near zero against huge gross volume. A person or their agent accumulates
+   * or spends; the two sides do not cancel.
    */
-  machineLike: { detected: boolean; measured: string };
+  walletKind: {
+    kind: "human" | "agent" | "infrastructure" | "unknown";
+    because: string;
+  };
 }
 
 const median = (xs: number[]): number | null => {
@@ -183,8 +194,17 @@ function stddev(xs: number[]): number | null {
 const DAY = 86400;
 /** Deposits must span at least this long before cadence means anything. */
 const MIN_SPAN_DAYS = 21;
-/** Above this many transactions a day, treat the wallet as a machine. */
-const MACHINE_TX_PER_DAY = 20;
+/**
+ * Infrastructure thresholds. Deliberately NOT a speed limit: an agent running
+ * someone's strategy can be fast and is still the audience.
+ */
+const PASSTHROUGH_NET_RATIO = 0.02; // money in ≈ money straight back out
+const PASSTHROUGH_MIN_TXS = 20;
+const ABSURD_TX_PER_DAY = 200;
+/** Agentic: sustained pace, or clockwork timing a human would not keep. */
+const AGENT_TX_PER_DAY = 5;
+const AGENT_MIN_SPAN_DAYS = 7;
+const CLOCKWORK_GAP_STDDEV_DAYS = 0.5;
 
 /**
  * Pure: derives habits from parsed transactions. No network, no clock — so it
@@ -260,20 +280,67 @@ export function deriveHabits(address: string, txs: ParsedTx[]): HabitReading {
     ),
   );
 
-  // Velocity across everything the window returned, not just deposits.
   const allStamps = txs.map((t) => t.timestamp ?? 0).filter((t) => t > 0).sort((a, b) => a - b);
   const windowDays =
     allStamps.length >= 2 ? (allStamps[allStamps.length - 1] - allStamps[0]) / DAY : 0;
   const perDay = windowDays > 0 ? allStamps.length / windowDays : allStamps.length;
-  const machineLike = allStamps.length >= 20 && perDay > MACHINE_TX_PER_DAY;
+
+  /**
+   * Flow shape, across every token this wallet moved. Infrastructure passes
+   * money through, so in and out very nearly cancel against a large gross.
+   * Someone's wallet — or their agent's — accumulates or spends.
+   */
+  let grossMoved = 0;
+  let netMoved = 0;
+  for (const t of txs) {
+    for (const tt of t.tokenTransfers ?? []) {
+      const amount = typeof tt.tokenAmount === "number" ? tt.tokenAmount : 0;
+      if (amount <= 0) continue;
+      if (tt.toUserAccount === address) {
+        grossMoved += amount;
+        netMoved += amount;
+      } else if (tt.fromUserAccount === address) {
+        grossMoved += amount;
+        netMoved -= amount;
+      }
+    }
+  }
+  const netRatio = grossMoved > 0 ? Math.abs(netMoved) / grossMoved : 1;
+
+  const passthrough =
+    allStamps.length >= PASSTHROUGH_MIN_TXS && grossMoved > 0 && netRatio < PASSTHROUGH_NET_RATIO;
+  const absurdPace = allStamps.length >= PASSTHROUGH_MIN_TXS && perDay > ABSURD_TX_PER_DAY;
+
+  const clockwork =
+    swaps.length >= 5 &&
+    swapSpanWeeks * 7 >= AGENT_MIN_SPAN_DAYS &&
+    swapSpread !== null &&
+    swapSpread < CLOCKWORK_GAP_STDDEV_DAYS;
+  const sustainedPace = windowDays >= AGENT_MIN_SPAN_DAYS && perDay > AGENT_TX_PER_DAY;
+
+  let walletKind: HabitReading["walletKind"];
+  if (passthrough || absurdPace) {
+    walletKind = {
+      kind: "infrastructure",
+      because: passthrough
+        ? `Money passes straight through: ${grossMoved.toFixed(0)} moved in total but only ${Math.abs(netMoved).toFixed(0)} stayed. That is a router, not somebody's savings.`
+        : `About ${Math.round(perDay)} transactions a day. Nothing with a bedtime does that.`,
+    };
+  } else if (clockwork || sustainedPace) {
+    walletKind = {
+      kind: "agent",
+      because: clockwork
+        ? "The timing is too even to be a hand — something is running this on a schedule, and honestly? Good."
+        : `About ${Math.round(perDay)} transactions a day, sustained. An agent is doing the work here.`,
+    };
+  } else if (allStamps.length < 3) {
+    walletKind = { kind: "unknown", because: "Too little activity to tell what is driving this." };
+  } else {
+    walletKind = { kind: "human", because: "Paced like a person making their own decisions." };
+  }
 
   return {
-    machineLike: {
-      detected: machineLike,
-      measured: machineLike
-        ? `${allStamps.length} transactions across about ${windowDays.toFixed(1)} days — roughly ${Math.round(perDay)} a day, which is machine pace, not a person.`
-        : `${allStamps.length} transactions across about ${windowDays.toFixed(1)} days.`,
-    },
+    walletKind,
     funding: {
       depositCount: inbound.length,
       medianDepositUsdc: median(inbound.map((d) => d.amount)),

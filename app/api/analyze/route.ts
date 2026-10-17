@@ -110,13 +110,13 @@ const handler = async (request: NextRequest) => {
       funding: habits?.funding,
       dca: habits?.dca,
       raidingSavings: habits?.raidingSavings,
-      machineLike: habits?.machineLike,
+      walletKind: habits?.walletKind,
     },
     blindSpots: blindSpots(
       req,
       stats,
       habits ? undefined : historyResult.message,
-      habits?.machineLike.detected ? habits.machineLike.measured : undefined,
+      habits?.walletKind.kind === "infrastructure" ? habits.walletKind.because : undefined,
     ),
     cardUrl: `${origin}/card/${token}`,
   };

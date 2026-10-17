@@ -139,18 +139,63 @@ check("still calls genuinely spread deposits regular", () => {
   assert.equal(h.funding.regularity, "regular");
 });
 
-check("flags machine-pace wallets", () => {
-  const busy = Array.from({ length: 94 }, (_, i) => swap(i * 0.01));
-  assert.equal(deriveHabits(ME, busy).machineLike.detected, true);
+check("calls a pass-through wallet infrastructure", () => {
+  // Money in, same money straight back out: a router, not savings.
+  const through: ParsedTx[] = [];
+  for (let i = 0; i < 30; i += 1) {
+    through.push({
+      type: "SWAP",
+      timestamp: T0 + i * DAY * 0.01,
+      tokenTransfers: [
+        { fromUserAccount: THEM, toUserAccount: ME, mint: USDC, tokenAmount: 1000 },
+        { fromUserAccount: ME, toUserAccount: THEM, mint: USDC, tokenAmount: 1000 },
+      ],
+    });
+  }
+  assert.equal(deriveHabits(ME, through).walletKind.kind, "infrastructure");
 });
 
-check("does not flag a human pace as machine", () => {
-  const human = Array.from({ length: 30 }, (_, i) => swap(i * 3));
-  assert.equal(deriveHabits(ME, human).machineLike.detected, false);
+check("calls clockwork timing an agent, not infrastructure", () => {
+  // Exactly daily for three weeks, and it accumulates. That is an agent
+  // running someone's strategy, and Piggy should still profile it.
+  const agent: ParsedTx[] = Array.from({ length: 21 }, (_, i) => ({
+    type: "SWAP",
+    timestamp: T0 + i * DAY,
+    tokenTransfers: [
+      { fromUserAccount: THEM, toUserAccount: ME, mint: USDC, tokenAmount: 50 },
+    ],
+  }));
+  assert.equal(deriveHabits(ME, agent).walletKind.kind, "agent");
 });
 
-check("too few transactions is never machine-like", () => {
-  assert.equal(deriveHabits(ME, [swap(0), swap(0.01)]).machineLike.detected, false);
+check("speed alone does not make something infrastructure", () => {
+  // Fast, but it keeps everything it receives.
+  const fast: ParsedTx[] = Array.from({ length: 60 }, (_, i) => ({
+    type: "SWAP",
+    timestamp: T0 + i * DAY * 0.1,
+    tokenTransfers: [
+      { fromUserAccount: THEM, toUserAccount: ME, mint: USDC, tokenAmount: 10 },
+    ],
+  }));
+  assert.notEqual(deriveHabits(ME, fast).walletKind.kind, "infrastructure");
+});
+
+check("a quiet human wallet reads as human", () => {
+  // Uneven gaps, because people are not cron jobs. Perfectly spaced intervals
+  // would be agentic, and correctly classified as such.
+  const offsets = [0, 7, 19, 24, 38, 51];
+  const human: ParsedTx[] = offsets.map((d) => ({
+    type: "SWAP",
+    timestamp: T0 + d * DAY,
+    tokenTransfers: [
+      { fromUserAccount: THEM, toUserAccount: ME, mint: USDC, tokenAmount: 40 },
+    ],
+  }));
+  assert.equal(deriveHabits(ME, human).walletKind.kind, "human");
+});
+
+check("barely any activity stays unknown", () => {
+  assert.equal(deriveHabits(ME, [swap(0)]).walletKind.kind, "unknown");
 });
 
 if (failures > 0) {
