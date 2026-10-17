@@ -7,6 +7,7 @@ import {
   buildPlan,
   computeStats,
   pickMood,
+  pickBand,
   pickPersona,
   pickScenario,
 } from "@/lib/piggy";
@@ -74,6 +75,7 @@ const handler = async (request: NextRequest) => {
 
   const mood = pickMood(stats, persona, habits);
   const scenario = pickScenario(req, stats, habits);
+  const band = pickBand(stats);
   const plan = buildPlan(req, stats);
   const cohort = readCohort(req, stats);
   const asOf = new Date().toISOString();
@@ -90,6 +92,7 @@ const handler = async (request: NextRequest) => {
     },
     cohort: { status: cohort.status, label: cohort.label, note: cohort.note },
     asOf,
+    band: band.band,
   });
 
   const response: AnalyzeResponse = {
@@ -97,6 +100,7 @@ const handler = async (request: NextRequest) => {
     persona,
     mood,
     scenario,
+    band,
     stats,
     plan,
     cohort,

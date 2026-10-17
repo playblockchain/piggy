@@ -1,0 +1,71 @@
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-8);
+}
+
+.topStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-1) var(--space-3);
+}
+
+.wordmark {
+  font: 400 var(--fs-title) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.intro {
+  background: var(--panel);
+  border: var(--stroke-window) solid var(--ink);
+  border-radius: var(--r-panel);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.introTitle {
+  font: 400 var(--fs-h2) / 1.2 var(--font-display-stack);
+  color: var(--text);
+  margin-bottom: var(--space-2);
+}
+
+.introBody {
+  color: var(--text);
+  max-width: 70ch;
+  text-wrap: pretty;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-7);
+  align-items: start;
+}
+
+.item {
+  min-width: 0;
+}
+
+.caption {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--panel);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--r-control);
+}
+
+.captionTitle {
+  font: 400 var(--fs-label) / 1 var(--font-pixel-stack);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.captionWhen {
+  margin-top: 6px;
+  font: 400 var(--fs-caption) / 1.45 var(--font-body-stack);
+  color: var(--text);
+}

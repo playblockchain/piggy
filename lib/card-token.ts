@@ -16,6 +16,8 @@ export interface CardPayload {
   };
   cohort: { status: "ok" | "unavailable"; label?: string; note: string };
   asOf: string;
+  /** Optional so links made before bands existed still render. */
+  band?: string;
 }
 
 export function encodeCard(payload: CardPayload): string {

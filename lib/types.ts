@@ -77,14 +77,25 @@ export type Scenario =
   | "perps_leverage"
   | "gambling"
   | "raiding_savings"
+  | "empty_wallet"
   | "unknown";
 
+/**
+ * Size band. Piggy is built for shrimps, but anyone can call it, so a whale
+ * must still get a sensible answer rather than advice to save $10 a week.
+ * Bands match queries/strategies.sql so a card can honestly say which band a
+ * strategy actually worked in.
+ */
+export type Band = "empty" | "dust" | "shrimp" | "mid" | "whale";
+
 export type PersonaId =
+  | "clean-slate"
   | "stable-queen"
   | "steady-saver"
   | "dip-diva"
   | "delulu-degen"
-  | "shrimp-gambler";
+  | "shrimp-gambler"
+  | "unreadable";
 
 export interface Persona {
   id: PersonaId;
@@ -131,6 +142,8 @@ export interface AnalyzeResponse {
   mood: { mood: Mood; because: string };
   /** The habit Piggy is reacting to, and whether it was readable at all. */
   scenario: { scenario: Scenario; because: string };
+  /** Size band, so the plan is sized to the wallet rather than to an assumption. */
+  band: { band: Band; because: string };
   /**
    * What reading transaction history found, or why it could not. Separate from
    * `stats` because it comes from an indexer, not from PayBox.

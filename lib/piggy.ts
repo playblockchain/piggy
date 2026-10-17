@@ -1,6 +1,7 @@
 import type { HabitReading } from "./history";
 import type {
   AnalyzeRequest,
+  Band,
   Basis,
   Mood,
   Persona,
@@ -97,6 +98,23 @@ export function computeStats(req: AnalyzeRequest): Stats {
   };
 }
 
+/**
+ * Anyone can call Piggy, so every wallet must land somewhere sensible. Bands
+ * exist so the plan is sized to the wallet: "$10 a week" is patronising to a
+ * whale and impossible for an empty wallet.
+ */
+export function pickBand(stats: Stats): { band: Band; because: string } {
+  const total = stats.totalUsd.value;
+  if (total === null) {
+    return { band: "shrimp", because: "I could not price this, so I am assuming nothing grand." };
+  }
+  if (total <= 0) return { band: "empty", because: "There is nothing in here at all." };
+  if (total < 25) return { band: "dust", because: "Under $25. Barely a snack." };
+  if (total < 10000) return { band: "shrimp", because: "Under $10k — my people." };
+  if (total < 250000) return { band: "mid", because: "Between $10k and $250k." };
+  return { band: "whale", because: "Over $250k. I am being very normal about this." };
+}
+
 export function pickPersona(req: AnalyzeRequest, stats: Stats): Persona {
   const longTail = stats.longTailShare.value;
   const stable = stats.stableShare.value;
@@ -107,6 +125,16 @@ export function pickPersona(req: AnalyzeRequest, stats: Stats): Persona {
   const gambles =
     (req.positions?.perps?.length ?? 0) > 0 ||
     (req.positions?.predictionMarkets?.length ?? 0) > 0;
+
+  // An empty wallet is not an unreadable one. It is the start of the story,
+  // and it gets its own card rather than an error.
+  if (total !== null && total <= 0) {
+    return {
+      id: "clean-slate",
+      name: "Clean Slate",
+      because: "Nothing in here yet. No history to hold against you, which is almost romantic.",
+    };
+  }
 
   // Shrimp Gambler is a funding-pattern persona: small balance, irregular
   // top-ups, gambling venues. We only claim it when we have the gambling
@@ -123,7 +151,7 @@ export function pickPersona(req: AnalyzeRequest, stats: Stats): Persona {
 
   if (longTail === null) {
     return {
-      id: "dip-diva",
+      id: "unreadable",
       name: "Unreadable (for now)",
       because: "No USD prices were supplied, so I cannot weigh what you hold.",
     };
@@ -186,6 +214,12 @@ export function pickMood(
   // goes here, in his voice; the numbers and the risks stay plain everywhere
   // else. Dramatic, never cruel: sad Piggy is funny, not humiliating, and is
   // always one good move from recovery.
+  if (persona.id === "clean-slate") {
+    return {
+      mood: "curious",
+      because: "Empty. No crimes, no triumphs. Put something in and let me judge you properly.",
+    };
+  }
   if (longTail === null) {
     return {
       mood: "curious",
@@ -247,6 +281,9 @@ export function pickScenario(
   // `because` repeats what was actually counted rather than asserting intent.
   if (habits?.raidingSavings.detected) {
     return { scenario: "raiding_savings", because: habits.raidingSavings.measured };
+  }
+  if (stats.totalUsd.value !== null && stats.totalUsd.value <= 0) {
+    return { scenario: "empty_wallet", because: "Nothing to read yet." };
   }
   if ((req.positions?.predictionMarkets?.length ?? 0) > 0) {
     return { scenario: "gambling", because: "You have open prediction-market positions." };
