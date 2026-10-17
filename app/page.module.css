@@ -51,6 +51,44 @@
   text-wrap: pretty;
 }
 
+.steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  counter-reset: step;
+}
+
+.step {
+  position: relative;
+  padding-left: 32px;
+  max-width: 62ch;
+  color: var(--text);
+  text-wrap: pretty;
+  counter-increment: step;
+}
+
+.step::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--step-label);
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step strong {
+  color: var(--text-strong);
+}
+
 .note {
   font-size: var(--step-helper);
   color: var(--text-muted);
