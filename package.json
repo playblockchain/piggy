@@ -28,6 +28,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "js-sha3": "^0.13.0",
     "typescript": "^5"
   }
 }

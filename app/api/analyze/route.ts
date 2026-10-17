@@ -12,6 +12,7 @@ import {
   pickScenario,
 } from "@/lib/piggy";
 import { deriveHabits, fetchHistory } from "@/lib/history";
+import { fetchPositions } from "@/lib/positions";
 import { fetchWallet } from "@/lib/wallet";
 import { analyzeRouteConfig, PAY_TO, resourceServer } from "@/lib/x402";
 import type { AnalyzeRequest, AnalyzeResponse } from "@/lib/types";
@@ -85,6 +86,17 @@ const handler = async (request: NextRequest) => {
     };
   }
 
+  // Positions are not balances: a leveraged bet lives at a venue, so Piggy
+  // asks the venues directly rather than inferring from holdings.
+  let positionsChecked: Awaited<ReturnType<typeof fetchPositions>>["checked"] = [];
+  if (req.addresses?.length) {
+    const found = await fetchPositions(req.addresses);
+    positionsChecked = found.checked;
+    if (found.perps.length > 0) {
+      req = { ...req, positions: { ...(req.positions ?? {}), perps: [...(req.positions?.perps ?? []), ...found.perps] } };
+    }
+  }
+
   const stats = computeStats(req);
   const persona = pickPersona(req, stats);
 
@@ -145,11 +157,13 @@ const handler = async (request: NextRequest) => {
       walletKind: habits?.walletKind,
     },
     ...(resolved.length ? { resolved } : {}),
+    ...(positionsChecked.length ? { venuesChecked: positionsChecked } : {}),
     blindSpots: blindSpots(
       req,
       stats,
       habits ? undefined : historyResult.message,
       habits?.walletKind.kind === "infrastructure" ? habits.walletKind.because : undefined,
+      positionsChecked.filter((v) => v.ok).map((v) => v.venue),
     ),
     cardUrl: `${origin}/card/${token}`,
   };

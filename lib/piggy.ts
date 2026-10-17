@@ -409,6 +409,8 @@ export function blindSpots(
   stats: Stats,
   historyMessage?: string,
   infrastructure?: string,
+  /** Venues Piggy actually asked. Checked-and-empty is not the same as unknown. */
+  venuesChecked?: string[],
 ): string[] {
   const out: string[] = [];
   if (stats.totalUsd.value === null) {
@@ -427,7 +429,11 @@ export function blindSpots(
     );
   }
   if (!req.positions?.perps?.length) {
-    out.push("No perps data was supplied, so leverage is unknown.");
+    out.push(
+      venuesChecked?.length
+        ? `I asked ${venuesChecked.join(" and ")} directly and you have no open positions there. Venues I did not ask could still be hiding something.`
+        : "No perps data was supplied, so leverage is unknown.",
+    );
   }
   if (!req.positions?.predictionMarkets?.length) {
     out.push("No prediction-market data was supplied, so those bets are unknown.");
