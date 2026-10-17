@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 import { decodeCard } from "@/lib/card-token";
 
@@ -33,9 +35,34 @@ function pct(v: number | null): string {
   return v === null || Number.isNaN(v) ? "—" : `${Math.round(v * 100)}%`;
 }
 
+/**
+ * The pig, read off disk and inlined.
+ *
+ * The preview had everything except him, which for a character-led card is
+ * the one thing it could not afford to leave out. Inlined as a data URI
+ * because the renderer cannot be relied on to fetch its own origin.
+ */
+function piggyDataUri(mood?: string, scenario?: string): string | null {
+  const names = [scenario, mood].filter((n): n is string => Boolean(n) && n !== "unknown");
+  for (const name of names) {
+    for (const ext of [".jpg", ".png", ".webp"]) {
+      const file = path.join(process.cwd(), "public", "piggy", `${name}${ext}`);
+      try {
+        if (!fs.existsSync(file)) continue;
+        const mime = ext === ".jpg" ? "image/jpeg" : ext === ".png" ? "image/png" : "image/webp";
+        return `data:${mime};base64,${fs.readFileSync(file).toString("base64")}`;
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
 export default async function Image({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const card = decodeCard(token);
+  const piggy = card ? piggyDataUri(card.mood.mood, card.scenario) : null;
 
   const bar = card ? (MOOD_BAR[card.mood.mood] ?? "#DFFFB6") : "#C1DAF9";
   const persona = card?.persona.name ?? "Card not readable";
@@ -95,7 +122,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
               <div style={{ fontSize: 22, letterSpacing: 3, color: TEXT, marginBottom: 10 }}>
                 MONEY PERSONALITY
               </div>
-              <div style={{ fontSize: 76, fontWeight: 700, color: TEXT, lineHeight: 1.05 }}>{persona}</div>
+              <div style={{ fontSize: 64, fontWeight: 700, color: TEXT, lineHeight: 1.05 }}>{persona}</div>
               {mood && (
                 <div
                   style={{
@@ -114,20 +141,25 @@ export default async function Image({ params }: { params: Promise<{ token: strin
                   {mood}
                 </div>
               )}
-              <div style={{ marginTop: 20, fontSize: 28, color: TEXT, lineHeight: 1.35, maxWidth: 620 }}>
+              <div style={{ marginTop: 18, fontSize: 25, color: TEXT, lineHeight: 1.35, maxWidth: 470 }}>
                 {because}
               </div>
             </div>
 
+            {piggy && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={piggy} width={230} height={230} alt="" style={{ borderRadius: 18 }} />
+            )}
+
             {card && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 18, width: 220 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 18, width: 190 }}>
                 {[
                   ["in stablecoins", card.stats.stableShare],
                   ["staked", card.stats.stakedShare],
                   ["long-tail", card.stats.longTailShare],
                 ].map(([label, value]) => (
                   <div key={label as string} style={{ display: "flex", flexDirection: "column" }}>
-                    <div style={{ fontSize: 52, fontWeight: 700, color: TEXT }}>{pct(value as number | null)}</div>
+                    <div style={{ fontSize: 44, fontWeight: 700, color: TEXT }}>{pct(value as number | null)}</div>
                     <div style={{ fontSize: 20, letterSpacing: 2, color: TEXT, textTransform: "uppercase" }}>
                       {label as string}
                     </div>
