@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withX402 } from "@x402/next";
+import { saveCard } from "@/lib/card-store";
 import { encodeCard } from "@/lib/card-token";
 import { readCohort } from "@/lib/cohorts";
 import {
@@ -165,7 +166,7 @@ const handler = async (request: NextRequest) => {
   const asOf = new Date().toISOString();
 
   const origin = process.env.NEXT_PUBLIC_BASE_URL ?? request.nextUrl.origin;
-  const token = encodeCard({
+  const cardPayload = {
     persona,
     mood,
     stats: {
@@ -178,7 +179,13 @@ const handler = async (request: NextRequest) => {
     asOf,
     band: band.band,
     scenario: scenario.scenario,
-  });
+  };
+  const token = encodeCard(cardPayload);
+
+  // Short link when storage is available, long self-contained link otherwise.
+  // A storage hiccup must never cost someone their card.
+  const shortId = await saveCard(cardPayload);
+  const cardPath = shortId ? `/c/${shortId}` : `/card/${token}`;
 
   const response: AnalyzeResponse = {
     asOf,
@@ -207,8 +214,8 @@ const handler = async (request: NextRequest) => {
       habits?.walletKind.kind === "infrastructure" ? habits.walletKind.because : undefined,
       positionsChecked.filter((v) => v.ok).map((v) => v.venue),
     ),
-    cardUrl: `${origin}/card/${token}`,
-    cardImageUrl: `${origin}/card/${token}/opengraph-image`,
+    cardUrl: `${origin}${cardPath}`,
+    cardImageUrl: `${origin}${cardPath}/opengraph-image`,
   };
 
   return NextResponse.json(response);

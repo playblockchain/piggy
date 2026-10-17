@@ -17,6 +17,7 @@
     "harvest": "node --experimental-strip-types scripts/harvest-cohorts.ts"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.2",
     "@x402/core": "^2.28.0",
     "@x402/evm": "^2.28.0",
     "@x402/next": "^2.28.0",
