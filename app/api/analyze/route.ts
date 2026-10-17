@@ -116,6 +116,7 @@ const handler = async (request: NextRequest) => {
         status: "ok",
         funding: habits.funding,
         topCounterparties: habits.topCounterparties,
+        ...(hist.chains ? { chains: hist.chains } : {}),
       };
     } else {
       evmHistory = { status: hist.status, message: hist.message };

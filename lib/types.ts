@@ -175,6 +175,7 @@ export interface AnalyzeResponse {
     message?: string;
     funding?: { depositCount: number; medianUsd: number | null; regularity: string; measured: string };
     topCounterparties?: Array<{ address: string; chain: string; interactions: number }>;
+    chains?: Array<{ chain: string; ok: boolean; transfers: number; message?: string }>;
   };
   /** Which perps venues were asked, and what they said. */
   venuesChecked?: Array<{ venue: string; chain: string; ok: boolean; found: number; message?: string }>;

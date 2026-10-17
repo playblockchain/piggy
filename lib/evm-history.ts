@@ -34,6 +34,8 @@ export interface EvmHistory {
   status: "ok" | "no_key" | "failed";
   transfers: Transfer[];
   message?: string;
+  /** Per-chain outcome. One disabled network must not blind the others. */
+  chains?: Array<{ chain: EvmChain; ok: boolean; transfers: number; message?: string }>;
 }
 
 async function transfersFor(
@@ -106,23 +108,42 @@ export async function fetchEvmHistory(
     };
   }
 
-  try {
-    const batches = await Promise.all(
-      chains.flatMap((chain) => [
-        transfersFor(chain, address, key, "in"),
-        transfersFor(chain, address, key, "out"),
-      ]),
-    );
-    const transfers = batches.flat().filter((t) => t.at);
-    transfers.sort((a, b) => a.at.localeCompare(b.at));
-    return { status: "ok", transfers };
-  } catch (err) {
+  // Per chain, so a network that is not enabled on the key costs only that
+  // network. Failing all three because one is switched off would report a
+  // wallet as quiet when it is merely unread.
+  const perChain = await Promise.all(
+    chains.map(async (chain) => {
+      try {
+        const [into, outOf] = await Promise.all([
+          transfersFor(chain, address, key, "in"),
+          transfersFor(chain, address, key, "out"),
+        ]);
+        const transfers = [...into, ...outOf].filter((t) => t.at);
+        return { chain, ok: true, transfers };
+      } catch (err) {
+        return { chain, ok: false, transfers: [] as Transfer[], message: (err as Error).message };
+      }
+    }),
+  );
+
+  const transfers = perChain.flatMap((c) => c.transfers);
+  transfers.sort((a, b) => a.at.localeCompare(b.at));
+  const chainReport = perChain.map((c) => ({
+    chain: c.chain,
+    ok: c.ok,
+    transfers: c.transfers.length,
+    ...(c.message ? { message: c.message } : {}),
+  }));
+
+  if (perChain.every((c) => !c.ok)) {
     return {
       status: "failed",
       transfers: [],
-      message: `Could not read EVM history: ${(err as Error).message}`,
+      chains: chainReport,
+      message: `No EVM chain could be read: ${perChain[0]?.message ?? "unknown error"}`,
     };
   }
+  return { status: "ok", transfers, chains: chainReport };
 }
 
 export interface EvmHabits {
