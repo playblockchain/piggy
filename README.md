@@ -89,6 +89,21 @@ verified without a key:
 npm run test:history
 ```
 
+## Two datasets, deliberately not blended
+
+| Query | Question | Who is in it |
+|---|---|---|
+| `queries/cohorts.sql` | "Who am I like?" | Small money only, matched on funding signature |
+| `queries/strategies.sql` | "What actually worked?" | Every size, whales included, reported by size band |
+
+Peers and aspiration are different claims and must stay visually and semantically separate.
+A $2m wallet can do things that are actively harmful at $500 — market-making, deep-collateral
+leverage, LPing where fees are rounding errors — so `strategies.sql` reports results **by size
+band**. If a behaviour only held up for whales, the band says so, and Piggy must not recommend
+it to someone with $500.
+
+What a shrimp can take from a whale is the *shape* of a strategy, never the position sizing.
+
 ## Cohorts
 
 The differentiated part of Piggy is comparing a user to wallets funded like them. Cohorts are
